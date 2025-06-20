@@ -1,0 +1,87 @@
+{
+  "name": "whatsapp-enhanced-messaging",
+  "version": "3.0.0-step3a",
+  "description": "Enhanced WhatsApp messaging platform with contacts, groups, templates, message logs, and data management - Step 3A",
+  "main": "server-step3a-data-management.js",
+  "scripts": {
+    "start": "node server-step3a-data-management.js",
+    "dev": "nodemon server-step3a-data-management.js",
+    "start:original": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "whatsapp",
+    "messaging",
+    "baileys",
+    "bulk-messaging",
+    "templates",
+    "personalization",
+    "contact-management",
+    "group-management",
+    "message-logs",
+    "analytics",
+    "data-management"
+  ],
+  "author": "r2997790",
+  "license": "MIT",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.8",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "qrcode": "^1.5.3",
+    "socket.io": "^4.7.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/r2997790/whatsapp-enhanced-messaging.git"
+  },
+  "step3a_features": [
+    "Contact Management (CRUD operations)",
+    "Group Management (WhatsApp groups)",
+    "Message Templates with variables",
+    "Message Logs & Analytics",
+    "CSV Import/Export functionality",
+    "Enhanced message personalization",
+    "Real-time data updates",
+    "Bulk messaging with contact selection"
+  ],
+  "api_endpoints": {
+    "contacts": [
+      "GET /api/contacts",
+      "POST /api/contacts", 
+      "PUT /api/contacts/:id",
+      "DELETE /api/contacts/:id",
+      "POST /api/contacts/import"
+    ],
+    "groups": [
+      "GET /api/groups",
+      "POST /api/groups",
+      "PUT /api/groups/:id", 
+      "DELETE /api/groups/:id"
+    ],
+    "templates": [
+      "GET /api/templates",
+      "POST /api/templates",
+      "PUT /api/templates/:id",
+      "DELETE /api/templates/:id"
+    ],
+    "messaging": [
+      "POST /api/send-message",
+      "POST /api/send-bulk-message"
+    ],
+    "logs": [
+      "GET /api/message-logs",
+      "GET /api/message-logs/stats"
+    ],
+    "utility": [
+      "GET /api/data/export",
+      "GET /health"
+    ]
+  }
+}
