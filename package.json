@@ -2,11 +2,11 @@
   "name": "whatsapp-enhanced-messaging",
   "version": "3.0.0-step3a",
   "description": "Enhanced WhatsApp messaging platform with contacts, groups, templates, message logs, and data management - Step 3A",
-  "main": "server-step3a-data-management.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node server-step3a-data-management.js",
-    "dev": "nodemon server-step3a-data-management.js",
-    "start:original": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "start:step3a": "node server-step3a-data-management.js"
   },
   "keywords": [
     "whatsapp",
