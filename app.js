@@ -1,5 +1,5 @@
 // Enhanced WhatsApp Messaging Platform - Complete Frontend Implementation
-// Socket.io connection and WhatsApp integration - Debug Version
+// Socket.io connection and WhatsApp integration - Debug Version v2.0.5
 
 let socket;
 let contacts = [];
@@ -172,12 +172,12 @@ function updateConnectionUI(status) {
         case 'connected':
             statusDot.classList.add('connected');
             statusText.textContent = 'WhatsApp Connected ✅';
-            connectBtn.textContent = '✅ Connected';
+            connectBtn.innerHTML = '<i class="fas fa-check"></i> Connected';
             connectBtn.disabled = true;
             connectBtn.className = 'btn';
-            resetBtn.disabled = false;
-            sendBtn.disabled = false;
-            primarySection.style.display = 'block';
+            if (resetBtn) resetBtn.disabled = false;
+            if (sendBtn) sendBtn.disabled = false;
+            if (primarySection) primarySection.style.display = 'block';
             hideQRCode();
             debugLog('UI updated for connected state');
             break;
@@ -188,9 +188,9 @@ function updateConnectionUI(status) {
             connectBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connecting...';
             connectBtn.disabled = true;
             connectBtn.className = 'btn btn-warning';
-            resetBtn.disabled = false;
-            sendBtn.disabled = true;
-            primarySection.style.display = 'none';
+            if (resetBtn) resetBtn.disabled = false;
+            if (sendBtn) sendBtn.disabled = true;
+            if (primarySection) primarySection.style.display = 'none';
             debugLog('UI updated for connecting state');
             break;
             
@@ -200,9 +200,9 @@ function updateConnectionUI(status) {
             connectBtn.innerHTML = '<i class="fas fa-qrcode"></i> Scan QR Code';
             connectBtn.disabled = true;
             connectBtn.className = 'btn btn-warning';
-            resetBtn.disabled = false;
-            sendBtn.disabled = true;
-            primarySection.style.display = 'none';
+            if (resetBtn) resetBtn.disabled = false;
+            if (sendBtn) sendBtn.disabled = true;
+            if (primarySection) primarySection.style.display = 'none';
             debugLog('UI updated for QR ready state');
             break;
             
@@ -211,9 +211,9 @@ function updateConnectionUI(status) {
             connectBtn.innerHTML = '<i class="fas fa-clock"></i> Cooldown Active';
             connectBtn.disabled = true;
             connectBtn.className = 'btn btn-secondary';
-            resetBtn.disabled = false;
-            sendBtn.disabled = true;
-            primarySection.style.display = 'none';
+            if (resetBtn) resetBtn.disabled = false;
+            if (sendBtn) sendBtn.disabled = true;
+            if (primarySection) primarySection.style.display = 'none';
             debugLog('UI updated for cooldown state');
             break;
             
@@ -222,9 +222,9 @@ function updateConnectionUI(status) {
             connectBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
             connectBtn.disabled = true;
             connectBtn.className = 'btn btn-danger';
-            resetBtn.disabled = false;
-            sendBtn.disabled = true;
-            primarySection.style.display = 'none';
+            if (resetBtn) resetBtn.disabled = false;
+            if (sendBtn) sendBtn.disabled = true;
+            if (primarySection) primarySection.style.display = 'none';
             hideQRCode();
             debugLog('UI updated for error state');
             break;
@@ -234,9 +234,9 @@ function updateConnectionUI(status) {
             connectBtn.innerHTML = '<i class="fas fa-plug"></i> Connect WhatsApp';
             connectBtn.disabled = false;
             connectBtn.className = 'btn btn-secondary';
-            resetBtn.disabled = false;
-            sendBtn.disabled = true;
-            primarySection.style.display = 'none';
+            if (resetBtn) resetBtn.disabled = false;
+            if (sendBtn) sendBtn.disabled = true;
+            if (primarySection) primarySection.style.display = 'none';
             hideQRCode();
             debugLog('UI updated for disconnected state');
     }
@@ -377,12 +377,12 @@ function selectSendMode(mode) {
     const bulkForm = document.getElementById('bulkSendForm');
     
     // Update button states
-    singleBtn.classList.toggle('selected', mode === 'single');
-    bulkBtn.classList.toggle('selected', mode === 'bulk');
+    if (singleBtn) singleBtn.classList.toggle('selected', mode === 'single');
+    if (bulkBtn) bulkBtn.classList.toggle('selected', mode === 'bulk');
     
     // Show/hide forms
-    singleForm.style.display = mode === 'single' ? 'block' : 'none';
-    bulkForm.style.display = mode === 'bulk' ? 'block' : 'none';
+    if (singleForm) singleForm.style.display = mode === 'single' ? 'block' : 'none';
+    if (bulkForm) bulkForm.style.display = mode === 'bulk' ? 'block' : 'none';
     
     debugLog('📨 Send mode selected:', mode);
 }
@@ -512,7 +512,7 @@ function showNotification(message, type = 'info') {
     });
 }
 
-// Add placeholder functions for all the other functionality to prevent errors
+// Placeholder functions for all the other functionality to prevent errors
 function renderContacts() {
     const container = document.getElementById('contactList');
     if (container) {
@@ -556,10 +556,33 @@ function updateSelectedRecipientsDisplay() {
 }
 
 // Essential placeholder functions
-function sendMessage() { debugLog('sendMessage called - functionality disabled in debug mode'); }
-function openContactModal() { debugLog('openContactModal called'); }
-function openGroupModal() { debugLog('openGroupModal called'); }
-function openTemplateModal() { debugLog('openTemplateModal called'); }
+function sendMessage() { 
+    debugLog('sendMessage called');
+    if (whatsappStatus !== 'connected') {
+        showNotification('WhatsApp not connected', 'error');
+        return;
+    }
+    showNotification('Send message functionality will be implemented', 'info');
+}
+
+function openContactModal() { 
+    debugLog('openContactModal called');
+    const modal = document.getElementById('contactModal');
+    if (modal) modal.style.display = 'block';
+}
+
+function openGroupModal() { 
+    debugLog('openGroupModal called');
+    const modal = document.getElementById('groupModal');
+    if (modal) modal.style.display = 'block';
+}
+
+function openTemplateModal() { 
+    debugLog('openTemplateModal called');
+    const modal = document.getElementById('templateModal');
+    if (modal) modal.style.display = 'block';
+}
+
 function selectFromContacts() { debugLog('selectFromContacts called'); }
 function selectFromGroups() { debugLog('selectFromGroups called'); }
 function clearRecipients() { debugLog('clearRecipients called'); }
@@ -573,15 +596,45 @@ function loadDemoContacts() { debugLog('loadDemoContacts called'); }
 function loadDemoTemplates() { debugLog('loadDemoTemplates called'); }
 function importContacts() { debugLog('importContacts called'); }
 function exportContacts() { debugLog('exportContacts called'); }
+function saveContact() { debugLog('saveContact called'); }
+function saveGroup() { debugLog('saveGroup called'); }
+function saveTemplate() { debugLog('saveTemplate called'); }
+
 function closeModal(modalId) { 
     const modal = document.getElementById(modalId);
     if (modal) modal.style.display = 'none';
 }
 
-debugLog('Enhanced WhatsApp Messaging Platform initialized with debugging');
+// Make functions globally available
+window.connectWhatsApp = connectWhatsApp;
+window.resetConnection = resetConnection;
+window.selectSendMode = selectSendMode;
+window.showSection = showSection;
+window.sendMessage = sendMessage;
+window.openContactModal = openContactModal;
+window.openGroupModal = openGroupModal;
+window.openTemplateModal = openTemplateModal;
+window.selectFromContacts = selectFromContacts;
+window.selectFromGroups = selectFromGroups;
+window.clearRecipients = clearRecipients;
+window.loadSelectedTemplate = loadSelectedTemplate;
+window.previewMessage = previewMessage;
+window.searchContacts = searchContacts;
+window.filterLogs = filterLogs;
+window.clearLogs = clearLogs;
+window.searchLogs = searchLogs;
+window.loadDemoContacts = loadDemoContacts;
+window.loadDemoTemplates = loadDemoTemplates;
+window.importContacts = importContacts;
+window.exportContacts = exportContacts;
+window.closeModal = closeModal;
+
+debugLog('Enhanced WhatsApp Messaging Platform v2.0.5 initialized with debugging');
 
 // Global error handler
 window.addEventListener('error', function(e) {
     debugLog('JavaScript Error:', e.error);
     console.error('Error details:', e);
 });
+
+console.log('✅ app.js loaded successfully - v2.0.5');
