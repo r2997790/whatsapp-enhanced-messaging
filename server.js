@@ -23,11 +23,15 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-// Fix static file serving - serve static files before other routes
+// FIXED: Proper static file serving with correct MIME types
 app.use(express.static(__dirname, {
-    setHeaders: (res, path) => {
-        if (path.endsWith('.js')) {
-            res.setHeader('Content-Type', 'application/javascript');
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        } else if (filePath.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css; charset=utf-8');
+        } else if (filePath.endsWith('.html')) {
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
         }
     }
 }));
@@ -35,7 +39,7 @@ app.use(express.static(__dirname, {
 const PORT = process.env.PORT || 3000;
 
 // Debug logging - Force deployment
-console.log('🚀 Starting Enhanced WhatsApp Messaging Platform v2.0.2 - Debug Mode');
+console.log('🚀 Starting Enhanced WhatsApp Messaging Platform v2.0.3 - FIXED JavaScript MIME type');
 
 // State management
 let sock = null;
@@ -275,7 +279,7 @@ function manualReset() {
 
 // Helper function to format phone numbers
 function formatPhoneNumber(number) {
-    let formattedNumber = number.toString().replace(/[^\\d]/g, '');
+    let formattedNumber = number.toString().replace(/[^\d]/g, '');
     
     // Handle group IDs
     if (number.includes('@g.us')) {
@@ -306,7 +310,7 @@ app.get('/health', (req, res) => {
         whatsapp: connectionStatus,
         attempts: connectionAttempts,
         timestamp: new Date().toISOString(),
-        version: '2.0.2-debug'
+        version: '2.0.3-fixed'
     });
 });
 
@@ -317,7 +321,7 @@ app.get('/api/status', (req, res) => {
         isConnecting: isConnecting,
         attempts: connectionAttempts,
         canAttempt: canAttemptConnection(),
-        version: '2.0.2-debug'
+        version: '2.0.3-fixed'
     });
 });
 
@@ -560,9 +564,9 @@ app.get('/', (req, res) => {
 
 // Start server
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Enhanced WhatsApp Messaging Platform v2.0.2 running on port ${PORT}`);
+    console.log(`🚀 Enhanced WhatsApp Messaging Platform v2.0.3 running on port ${PORT}`);
     console.log(`📱 Node: ${process.version}`);
-    console.log('⏳ Ready for connections - Enhanced features enabled - DEBUG MODE');
-    console.log('🔍 Debug logging enabled for troubleshooting');
+    console.log('⏳ Ready for connections - JavaScript MIME type FIXED');
+    console.log('🔧 Fixed static file serving with proper Content-Type headers');
     console.log('📁 Static files served from:', __dirname);
 });
