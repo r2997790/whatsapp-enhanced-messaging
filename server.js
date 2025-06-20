@@ -25,7 +25,12 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// CRITICAL FIX: Explicit route for app.js with correct MIME type
+// Debug logging
+console.log('🚀 Starting Enhanced WhatsApp Messaging Platform v2.0.5 - CRITICAL FIX 2');
+console.log('📁 Serving files from:', __dirname);
+console.log('📄 Checking for app.js:', fs.existsSync(path.join(__dirname, 'app.js')));
+
+// CRITICAL FIX: Place the explicit app.js route BEFORE static middleware
 app.get('/app.js', (req, res) => {
     const appJsPath = path.join(__dirname, 'app.js');
     console.log('📄 Serving app.js from:', appJsPath);
@@ -40,7 +45,13 @@ app.get('/app.js', (req, res) => {
     }
 });
 
-// Enhanced static file serving
+// DEBUG: Log all requests to see what's happening
+app.use((req, res, next) => {
+    console.log(`🌐 ${req.method} ${req.path}`);
+    next();
+});
+
+// Enhanced static file serving - AFTER explicit routes
 app.use(express.static(__dirname, {
     setHeaders: (res, filePath) => {
         console.log('📁 Static file request:', filePath);
@@ -55,11 +66,6 @@ app.use(express.static(__dirname, {
         }
     }
 }));
-
-// Debug logging
-console.log('🚀 Starting Enhanced WhatsApp Messaging Platform v2.0.4 - CRITICAL FIX');
-console.log('📁 Serving files from:', __dirname);
-console.log('📄 Checking for app.js:', fs.existsSync(path.join(__dirname, 'app.js')));
 
 // State management
 let sock = null;
@@ -323,12 +329,6 @@ function personalizeMessage(content, contact) {
         .replace(/{fullName}/g, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
 }
 
-// DEBUG: Log all requests to see what's happening
-app.use((req, res, next) => {
-    console.log(`🌐 ${req.method} ${req.path}`);
-    next();
-});
-
 // Routes - Place AFTER static file serving
 app.get('/health', (req, res) => {
     res.json({
@@ -336,7 +336,7 @@ app.get('/health', (req, res) => {
         whatsapp: connectionStatus,
         attempts: connectionAttempts,
         timestamp: new Date().toISOString(),
-        version: '2.0.4-critical-fix',
+        version: '2.0.5-critical-fix-2',
         appJsExists: fs.existsSync(path.join(__dirname, 'app.js'))
     });
 });
@@ -348,7 +348,7 @@ app.get('/api/status', (req, res) => {
         isConnecting: isConnecting,
         attempts: connectionAttempts,
         canAttempt: canAttemptConnection(),
-        version: '2.0.4-critical-fix'
+        version: '2.0.5-critical-fix-2'
     });
 });
 
@@ -584,7 +584,7 @@ io.on('connection', (socket) => {
     });
 });
 
-// Handle root route LAST - after all other routes
+// Handle root route - AFTER all other routes
 app.get('/', (req, res) => {
     const indexPath = path.join(__dirname, 'index.html');
     console.log('🏠 Serving index.html from:', indexPath);
@@ -607,9 +607,9 @@ app.get('*', (req, res) => {
 
 // Start server
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Enhanced WhatsApp Messaging Platform v2.0.4 running on port ${PORT}`);
+    console.log(`🚀 Enhanced WhatsApp Messaging Platform v2.0.5 running on port ${PORT}`);
     console.log(`📱 Node: ${process.version}`);
-    console.log('🔧 CRITICAL FIX: Explicit app.js route with correct MIME type');
+    console.log('🔧 CRITICAL FIX 2: app.js route placed BEFORE static middleware');
     console.log('📁 Static files served from:', __dirname);
     console.log('📄 Files in directory:', fs.readdirSync(__dirname).filter(f => f.endsWith('.js') || f.endsWith('.html')));
 });
