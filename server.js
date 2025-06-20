@@ -22,12 +22,20 @@ const io = new Server(server, {
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('.'));
+
+// Fix static file serving - serve static files before other routes
+app.use(express.static(__dirname, {
+    setHeaders: (res, path) => {
+        if (path.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript');
+        }
+    }
+}));
 
 const PORT = process.env.PORT || 3000;
 
 // Debug logging - Force deployment
-console.log('🚀 Starting Enhanced WhatsApp Messaging Platform v2.0.1 - Debug Mode');
+console.log('🚀 Starting Enhanced WhatsApp Messaging Platform v2.0.2 - Debug Mode');
 
 // State management
 let sock = null;
@@ -291,18 +299,14 @@ function personalizeMessage(content, contact) {
         .replace(/{fullName}/g, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
 }
 
-// Routes
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
+// Routes - Place AFTER static file serving
 app.get('/health', (req, res) => {
     res.json({
         status: 'ok',
         whatsapp: connectionStatus,
         attempts: connectionAttempts,
         timestamp: new Date().toISOString(),
-        version: '2.0.1-debug'
+        version: '2.0.2-debug'
     });
 });
 
@@ -313,7 +317,7 @@ app.get('/api/status', (req, res) => {
         isConnecting: isConnecting,
         attempts: connectionAttempts,
         canAttempt: canAttemptConnection(),
-        version: '2.0.1-debug'
+        version: '2.0.2-debug'
     });
 });
 
@@ -549,10 +553,16 @@ io.on('connection', (socket) => {
     });
 });
 
+// Handle root route last - after static files and API routes
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // Start server
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Enhanced WhatsApp Messaging Platform v2.0.1 running on port ${PORT}`);
+    console.log(`🚀 Enhanced WhatsApp Messaging Platform v2.0.2 running on port ${PORT}`);
     console.log(`📱 Node: ${process.version}`);
     console.log('⏳ Ready for connections - Enhanced features enabled - DEBUG MODE');
     console.log('🔍 Debug logging enabled for troubleshooting');
+    console.log('📁 Static files served from:', __dirname);
 });
