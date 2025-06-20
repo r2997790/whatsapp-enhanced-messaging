@@ -26,6 +26,9 @@ app.use(express.static('.'));
 
 const PORT = process.env.PORT || 3000;
 
+// Debug logging - Force deployment
+console.log('🚀 Starting Enhanced WhatsApp Messaging Platform v2.0.1 - Debug Mode');
+
 // State management
 let sock = null;
 let qrCodeData = null;
@@ -152,7 +155,7 @@ async function connectToWhatsApp() {
                     connectionStatus = 'qr-ready';
                     io.emit('qr-code', qrCodeData);
                     io.emit('connection-status', connectionStatus);
-                    console.log('✅ QR emitted');
+                    console.log('✅ QR emitted to clients');
                 } catch (error) {
                     console.error('❌ QR error:', error);
                 }
@@ -298,7 +301,8 @@ app.get('/health', (req, res) => {
         status: 'ok',
         whatsapp: connectionStatus,
         attempts: connectionAttempts,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        version: '2.0.1-debug'
     });
 });
 
@@ -308,7 +312,8 @@ app.get('/api/status', (req, res) => {
         hasQR: !!qrCodeData,
         isConnecting: isConnecting,
         attempts: connectionAttempts,
-        canAttempt: canAttemptConnection()
+        canAttempt: canAttemptConnection(),
+        version: '2.0.1-debug'
     });
 });
 
@@ -520,6 +525,7 @@ io.on('connection', (socket) => {
     socket.emit('connection-status', connectionStatus);
     if (qrCodeData) {
         socket.emit('qr-code', qrCodeData);
+        console.log('📱 Sent existing QR code to new client');
     }
 
     socket.on('connect-whatsapp', () => {
@@ -545,7 +551,8 @@ io.on('connection', (socket) => {
 
 // Start server
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Enhanced WhatsApp Messaging Platform running on port ${PORT}`);
+    console.log(`🚀 Enhanced WhatsApp Messaging Platform v2.0.1 running on port ${PORT}`);
     console.log(`📱 Node: ${process.version}`);
-    console.log('⏳ Ready for connections - Enhanced features enabled');
+    console.log('⏳ Ready for connections - Enhanced features enabled - DEBUG MODE');
+    console.log('🔍 Debug logging enabled for troubleshooting');
 });
