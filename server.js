@@ -23,11 +23,31 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-// FIXED: Proper static file serving with correct MIME types
+const PORT = process.env.PORT || 3000;
+
+// CRITICAL FIX: Explicit route for app.js with correct MIME type
+app.get('/app.js', (req, res) => {
+    const appJsPath = path.join(__dirname, 'app.js');
+    console.log('📄 Serving app.js from:', appJsPath);
+    
+    if (fs.existsSync(appJsPath)) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.sendFile(appJsPath);
+    } else {
+        console.error('❌ app.js not found at:', appJsPath);
+        res.status(404).send('app.js not found');
+    }
+});
+
+// Enhanced static file serving
 app.use(express.static(__dirname, {
     setHeaders: (res, filePath) => {
+        console.log('📁 Static file request:', filePath);
+        
         if (filePath.endsWith('.js')) {
             res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+            res.setHeader('Cache-Control', 'no-cache');
         } else if (filePath.endsWith('.css')) {
             res.setHeader('Content-Type', 'text/css; charset=utf-8');
         } else if (filePath.endsWith('.html')) {
@@ -36,10 +56,10 @@ app.use(express.static(__dirname, {
     }
 }));
 
-const PORT = process.env.PORT || 3000;
-
-// Debug logging - Force deployment
-console.log('🚀 Starting Enhanced WhatsApp Messaging Platform v2.0.3 - FIXED JavaScript MIME type');
+// Debug logging
+console.log('🚀 Starting Enhanced WhatsApp Messaging Platform v2.0.4 - CRITICAL FIX');
+console.log('📁 Serving files from:', __dirname);
+console.log('📄 Checking for app.js:', fs.existsSync(path.join(__dirname, 'app.js')));
 
 // State management
 let sock = null;
@@ -303,6 +323,12 @@ function personalizeMessage(content, contact) {
         .replace(/{fullName}/g, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
 }
 
+// DEBUG: Log all requests to see what's happening
+app.use((req, res, next) => {
+    console.log(`🌐 ${req.method} ${req.path}`);
+    next();
+});
+
 // Routes - Place AFTER static file serving
 app.get('/health', (req, res) => {
     res.json({
@@ -310,7 +336,8 @@ app.get('/health', (req, res) => {
         whatsapp: connectionStatus,
         attempts: connectionAttempts,
         timestamp: new Date().toISOString(),
-        version: '2.0.3-fixed'
+        version: '2.0.4-critical-fix',
+        appJsExists: fs.existsSync(path.join(__dirname, 'app.js'))
     });
 });
 
@@ -321,7 +348,7 @@ app.get('/api/status', (req, res) => {
         isConnecting: isConnecting,
         attempts: connectionAttempts,
         canAttempt: canAttemptConnection(),
-        version: '2.0.3-fixed'
+        version: '2.0.4-critical-fix'
     });
 });
 
@@ -557,16 +584,32 @@ io.on('connection', (socket) => {
     });
 });
 
-// Handle root route last - after static files and API routes
+// Handle root route LAST - after all other routes
 app.get('/', (req, res) => {
+    const indexPath = path.join(__dirname, 'index.html');
+    console.log('🏠 Serving index.html from:', indexPath);
+    res.sendFile(indexPath);
+});
+
+// Catch-all for unknown routes - DO NOT SERVE HTML for static assets
+app.get('*', (req, res) => {
+    console.log('❓ Unknown route requested:', req.path);
+    
+    // If it looks like a static asset request, return 404
+    if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg)$/)) {
+        console.log('❌ Static asset not found:', req.path);
+        return res.status(404).send('File not found');
+    }
+    
+    // Otherwise serve index.html for client-side routing
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Start server
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Enhanced WhatsApp Messaging Platform v2.0.3 running on port ${PORT}`);
+    console.log(`🚀 Enhanced WhatsApp Messaging Platform v2.0.4 running on port ${PORT}`);
     console.log(`📱 Node: ${process.version}`);
-    console.log('⏳ Ready for connections - JavaScript MIME type FIXED');
-    console.log('🔧 Fixed static file serving with proper Content-Type headers');
+    console.log('🔧 CRITICAL FIX: Explicit app.js route with correct MIME type');
     console.log('📁 Static files served from:', __dirname);
+    console.log('📄 Files in directory:', fs.readdirSync(__dirname).filter(f => f.endsWith('.js') || f.endsWith('.html')));
 });
