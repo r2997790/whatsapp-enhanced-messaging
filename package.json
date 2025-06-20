@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-enhanced-messaging",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Enhanced WhatsApp messaging platform with templates, personalization, contact management, and Baileys API integration",
   "main": "server.js",
   "scripts": {
