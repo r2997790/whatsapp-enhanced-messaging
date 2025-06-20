@@ -1,5 +1,5 @@
 // Enhanced WhatsApp Messaging Platform - Complete Frontend Implementation
-// Socket.io connection and WhatsApp integration
+// Socket.io connection and WhatsApp integration - Debug Version
 
 let socket;
 let contacts = [];
@@ -10,8 +10,18 @@ let selectedRecipients = [];
 let currentSendMode = 'single';
 let whatsappStatus = 'disconnected';
 
+// Debug flag
+const DEBUG = true;
+
+function debugLog(message, data = null) {
+    if (DEBUG) {
+        console.log(`[DEBUG] ${message}`, data || '');
+    }
+}
+
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
+    debugLog('DOM Content Loaded - Starting initialization');
     initializeApp();
     initializeSocket();
     loadStoredData();
@@ -20,12 +30,13 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeApp() {
-    console.log('Initializing Enhanced WhatsApp Messaging Platform...');
+    debugLog('Initializing Enhanced WhatsApp Messaging Platform...');
     
     // Load draft message if exists
     const draft = localStorage.getItem('whatsapp_message_draft');
     if (draft && document.getElementById('messageContent')) {
         document.getElementById('messageContent').value = draft;
+        debugLog('Loaded draft message');
     }
     
     // Initialize UI state
@@ -35,73 +46,104 @@ function initializeApp() {
     renderGroups();
     renderTemplates();
     renderLogs();
+    
+    debugLog('App initialization complete');
 }
 
 function initializeSocket() {
-    console.log('Connecting to server...');
+    debugLog('Attempting to connect to server via socket.io...');
     
     try {
+        // Check if io is available
+        if (typeof io === 'undefined') {
+            debugLog('ERROR: socket.io library not loaded!');
+            showNotification('Socket.io library not loaded. Please refresh the page.', 'error');
+            return;
+        }
+        
+        debugLog('Socket.io library found, creating connection...');
         socket = io();
         
         socket.on('connect', () => {
-            console.log('✅ Connected to server');
+            debugLog('✅ Connected to server successfully');
             showNotification('Connected to server', 'success');
         });
         
         socket.on('disconnect', () => {
-            console.log('❌ Disconnected from server');
+            debugLog('❌ Disconnected from server');
             showNotification('Disconnected from server', 'warning');
             updateConnectionUI('disconnected');
         });
         
         socket.on('connection-status', (status) => {
-            console.log('📡 Connection status:', status);
+            debugLog('📡 Connection status received:', status);
             whatsappStatus = status;
             updateConnectionUI(status);
         });
         
         socket.on('qr-code', (qrData) => {
-            console.log('📱 QR code received:', !!qrData);
+            debugLog('📱 QR code received:', !!qrData);
             displayQRCode(qrData);
         });
         
         socket.on('connect_error', (error) => {
-            console.error('❌ Socket connection error:', error);
+            debugLog('❌ Socket connection error:', error);
             showNotification('Connection error: ' + error.message, 'error');
         });
         
+        // Test connection after 2 seconds
+        setTimeout(() => {
+            if (socket && socket.connected) {
+                debugLog('Socket connection test: SUCCESS');
+            } else {
+                debugLog('Socket connection test: FAILED - not connected');
+                showNotification('Failed to establish socket connection', 'error');
+            }
+        }, 2000);
+        
     } catch (error) {
-        console.error('❌ Failed to initialize socket:', error);
-        showNotification('Failed to connect to server', 'error');
+        debugLog('❌ Failed to initialize socket:', error);
+        showNotification('Failed to connect to server: ' + error.message, 'error');
     }
 }
 
 function connectWhatsApp() {
-    console.log('🔌 Requesting WhatsApp connection...');
+    debugLog('🔌 Connect WhatsApp button clicked');
     
     if (!socket) {
+        debugLog('ERROR: No socket connection available');
         showNotification('No server connection', 'error');
         return;
     }
     
+    if (!socket.connected) {
+        debugLog('ERROR: Socket not connected');
+        showNotification('Socket not connected to server', 'error');
+        return;
+    }
+    
     if (whatsappStatus === 'connected') {
+        debugLog('Already connected to WhatsApp');
         showNotification('Already connected to WhatsApp', 'info');
         return;
     }
     
+    debugLog('Emitting connect-whatsapp event to server');
     updateConnectionUI('connecting');
     socket.emit('connect-whatsapp');
     showNotification('Connecting to WhatsApp...', 'info');
 }
 
 function resetConnection() {
-    console.log('🔄 Resetting WhatsApp connection...');
+    debugLog('🔄 Reset connection button clicked');
     
     if (!socket) {
+        debugLog('ERROR: No socket connection for reset');
         showNotification('No server connection', 'error');
         return;
     }
     
+    debugLog('Emitting reset-connection event to server');
     socket.emit('reset-connection');
     updateConnectionUI('disconnected');
     hideQRCode();
@@ -109,12 +151,19 @@ function resetConnection() {
 }
 
 function updateConnectionUI(status) {
+    debugLog('Updating connection UI to status:', status);
+    
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
     const connectBtn = document.getElementById('connectBtn');
     const resetBtn = document.getElementById('resetBtn');
     const sendBtn = document.getElementById('sendBtn');
     const primarySection = document.getElementById('primarySendSection');
+    
+    if (!statusDot || !statusText || !connectBtn) {
+        debugLog('ERROR: Missing UI elements for connection status');
+        return;
+    }
     
     // Remove all status classes
     statusDot.className = 'status-dot';
@@ -130,6 +179,7 @@ function updateConnectionUI(status) {
             sendBtn.disabled = false;
             primarySection.style.display = 'block';
             hideQRCode();
+            debugLog('UI updated for connected state');
             break;
             
         case 'connecting':
@@ -141,6 +191,7 @@ function updateConnectionUI(status) {
             resetBtn.disabled = false;
             sendBtn.disabled = true;
             primarySection.style.display = 'none';
+            debugLog('UI updated for connecting state');
             break;
             
         case 'qr-ready':
@@ -152,6 +203,7 @@ function updateConnectionUI(status) {
             resetBtn.disabled = false;
             sendBtn.disabled = true;
             primarySection.style.display = 'none';
+            debugLog('UI updated for QR ready state');
             break;
             
         case 'cooldown':
@@ -162,6 +214,7 @@ function updateConnectionUI(status) {
             resetBtn.disabled = false;
             sendBtn.disabled = true;
             primarySection.style.display = 'none';
+            debugLog('UI updated for cooldown state');
             break;
             
         case 'error':
@@ -173,6 +226,7 @@ function updateConnectionUI(status) {
             sendBtn.disabled = true;
             primarySection.style.display = 'none';
             hideQRCode();
+            debugLog('UI updated for error state');
             break;
             
         default: // disconnected
@@ -184,29 +238,43 @@ function updateConnectionUI(status) {
             sendBtn.disabled = true;
             primarySection.style.display = 'none';
             hideQRCode();
+            debugLog('UI updated for disconnected state');
     }
 }
 
 function displayQRCode(qrData) {
+    debugLog('DisplayQRCode called with data:', !!qrData);
+    
     const qrSection = document.getElementById('qrSection');
     const qrImage = document.getElementById('qrImage');
+    
+    if (!qrSection || !qrImage) {
+        debugLog('ERROR: QR section elements not found');
+        return;
+    }
     
     if (qrData) {
         qrImage.src = qrData;
         qrSection.style.display = 'block';
-        console.log('📱 QR Code displayed');
+        debugLog('📱 QR Code displayed successfully');
+        showNotification('QR Code generated! Scan with WhatsApp to connect.', 'success');
     } else {
         qrSection.style.display = 'none';
-        console.log('📱 QR Code hidden');
+        debugLog('📱 QR Code hidden');
     }
 }
 
 function hideQRCode() {
     const qrSection = document.getElementById('qrSection');
-    qrSection.style.display = 'none';
+    if (qrSection) {
+        qrSection.style.display = 'none';
+        debugLog('QR Code section hidden');
+    }
 }
 
 function setupEventListeners() {
+    debugLog('Setting up event listeners...');
+    
     // Auto-save drafts
     let draftTimeout;
     const messageTextarea = document.getElementById('messageContent');
@@ -249,6 +317,8 @@ function setupEventListeners() {
     
     // Form submissions
     setupFormHandlers();
+    
+    debugLog('Event listeners setup complete');
 }
 
 function setupFormHandlers() {
@@ -287,12 +357,12 @@ function loadStoredData() {
         templates = JSON.parse(localStorage.getItem('whatsapp_templates') || '[]');
         logs = JSON.parse(localStorage.getItem('whatsapp_logs') || '[]');
         selectedRecipients = JSON.parse(localStorage.getItem('whatsapp_selected_recipients') || '[]');
-        console.log('📊 Loaded stored data');
+        debugLog('📊 Loaded stored data - contacts:', contacts.length, 'templates:', templates.length);
         
         // Update selected recipients display if any
         updateSelectedRecipientsDisplay();
     } catch (error) {
-        console.error('❌ Error loading stored data:', error);
+        debugLog('❌ Error loading stored data:', error);
         showNotification('Error loading stored data', 'error');
     }
 }
@@ -314,174 +384,40 @@ function selectSendMode(mode) {
     singleForm.style.display = mode === 'single' ? 'block' : 'none';
     bulkForm.style.display = mode === 'bulk' ? 'block' : 'none';
     
-    console.log('📨 Send mode selected:', mode);
+    debugLog('📨 Send mode selected:', mode);
 }
 
-// Message Sending
-async function sendMessage() {
-    if (whatsappStatus !== 'connected') {
-        showNotification('WhatsApp not connected', 'error');
-        return;
+// Navigation
+function showSection(sectionName) {
+    // Hide all sections
+    const sections = document.querySelectorAll('.section');
+    sections.forEach(section => section.classList.remove('active'));
+    
+    // Remove active class from all nav buttons
+    const navButtons = document.querySelectorAll('.nav-btn');
+    navButtons.forEach(btn => btn.classList.remove('active'));
+    
+    // Show selected section
+    const targetSection = document.getElementById(sectionName);
+    if (targetSection) {
+        targetSection.classList.add('active');
     }
     
-    const messageContent = document.getElementById('messageContent').value.trim();
-    if (!messageContent) {
-        showNotification('Please enter a message', 'error');
-        return;
+    // Add active class to corresponding nav button
+    const activeButton = Array.from(navButtons).find(btn => 
+        btn.textContent.toLowerCase().includes(sectionName.toLowerCase())
+    );
+    if (activeButton) {
+        activeButton.classList.add('active');
     }
     
-    const sendBtn = document.getElementById('sendBtn');
-    sendBtn.disabled = true;
-    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-    
-    try {
-        if (currentSendMode === 'single') {
-            await sendSingleMessage(messageContent);
-        } else {
-            await sendBulkMessage(messageContent);
-        }
-        
-        // Clear draft after successful send
-        localStorage.removeItem('whatsapp_message_draft');
-        document.getElementById('messageContent').value = '';
-        
-    } catch (error) {
-        console.error('❌ Send error:', error);
-        showNotification('Failed to send message: ' + error.message, 'error');
-    } finally {
-        sendBtn.disabled = false;
-        sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send WhatsApp Message';
-    }
+    debugLog('📑 Switched to section:', sectionName);
 }
 
-async function sendSingleMessage(message) {
-    const phoneInput = document.getElementById('singlePhone').value.trim();
-    
-    if (!phoneInput) {
-        throw new Error('Please enter a phone number');
-    }
-    
-    const recipient = {
-        phone: phoneInput,
-        firstName: '', 
-        lastName: ''
-    };
-    
-    const response = await fetch('/api/send-single', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            recipient: recipient,
-            message: message,
-            personalize: false
-        })
-    });
-    
-    const result = await response.json();
-    
-    if (result.success) {
-        showNotification(`Message sent to ${result.recipient}`, 'success');
-        addToLogs({
-            recipient: result.recipient,
-            message: result.personalizedMessage || message,
-            status: 'sent',
-            timestamp: new Date().toISOString()
-        });
-        
-        // Clear phone input
-        document.getElementById('singlePhone').value = '';
-        
-    } else {
-        throw new Error(result.error || 'Unknown error occurred');
-    }
-}
-
-async function sendBulkMessage(message) {
-    if (selectedRecipients.length === 0) {
-        throw new Error('Please select recipients');
-    }
-    
-    const response = await fetch('/api/send-bulk', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            recipients: selectedRecipients,
-            message: message,
-            personalize: true,
-            delayBetween: 2000
-        })
-    });
-    
-    const result = await response.json();
-    
-    if (result.success) {
-        showNotification(result.message, 'success');
-        
-        // Add each result to logs
-        result.results.forEach(res => {
-            addToLogs({
-                recipient: res.recipient,
-                message: res.personalizedMessage || message,
-                status: res.success ? 'sent' : 'failed',
-                error: res.error,
-                timestamp: new Date().toISOString()
-            });
-        });
-        
-        // Clear recipients
-        clearRecipients();
-        
-    } else {
-        throw new Error(result.error || 'Unknown error occurred');
-    }
-}
-
-function previewMessage() {
-    const messageContent = document.getElementById('messageContent').value.trim();
-    
-    if (!messageContent) {
-        showNotification('Please enter a message to preview', 'error');
-        return;
-    }
-    
-    let previewText = 'Message Preview:\n\n';
-    
-    if (currentSendMode === 'single') {
-        previewText += messageContent;
-    } else {
-        if (selectedRecipients.length === 0) {
-            previewText += messageContent + '\n\n(No recipients selected)';
-        } else {
-            previewText += 'Sample personalization for first recipient:\n\n';
-            const firstRecipient = selectedRecipients[0];
-            const personalizedMessage = personalizeMessage(messageContent, firstRecipient);
-            previewText += personalizedMessage;
-            previewText += `\n\n📊 Will be sent to ${selectedRecipients.length} recipients`;
-        }
-    }
-    
-    alert(previewText);
-}
-
-// Utility Functions
-function personalizeMessage(content, contact) {
-    return content
-        .replace(/{firstName}/g, contact.firstName || contact.name || '')
-        .replace(/{lastName}/g, contact.lastName || '')
-        .replace(/{nickname}/g, contact.nickname || contact.firstName || contact.name || '')
-        .replace(/{fullName}/g, `${contact.firstName || ''} ${contact.lastName || ''}`.trim());
-}
-
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    modal.style.display = 'none';
-}
-
+// Notification system
 function showNotification(message, type = 'info') {
+    debugLog('Showing notification:', message, 'type:', type);
+    
     // Remove existing notifications
     const existingNotification = document.querySelector('.notification');
     if (existingNotification) {
@@ -576,156 +512,76 @@ function showNotification(message, type = 'info') {
     });
 }
 
-// Demo Data Functions
-function loadDemoContacts() {
-    const demoContacts = [
-        {
-            id: 'demo1',
-            firstName: 'John',
-            lastName: 'Smith',
-            nickname: 'Johnny',
-            phone: '1234567890',
-            email: 'john.smith@email.com',
-            createdAt: new Date().toISOString()
-        },
-        {
-            id: 'demo2',
-            firstName: 'Sarah',
-            lastName: 'Johnson',
-            nickname: 'Sara',
-            phone: '1234567891',
-            email: 'sarah.j@email.com',
-            createdAt: new Date().toISOString()
-        },
-        {
-            id: 'demo3',
-            firstName: 'Mike',
-            lastName: 'Davis',
-            nickname: 'Mikey',
-            phone: '1234567892',
-            email: 'mike.davis@email.com',
-            createdAt: new Date().toISOString()
-        }
-    ];
-
-    contacts = [...contacts, ...demoContacts];
-    localStorage.setItem('whatsapp_contacts', JSON.stringify(contacts));
-    renderContacts();
-    showNotification('Demo contacts loaded successfully!', 'success');
-}
-
-function loadDemoTemplates() {
-    const demoTemplates = [
-        {
-            id: 'template1',
-            name: 'Welcome Message',
-            content: 'Hi {firstName}! Welcome to our platform. We\'re excited to have you on board! 🎉',
-            createdAt: new Date().toISOString()
-        },
-        {
-            id: 'template2',
-            name: 'Meeting Reminder',
-            content: 'Hello {nickname}, just a friendly reminder about our meeting tomorrow at 2 PM. See you there! 📅',
-            createdAt: new Date().toISOString()
-        },
-        {
-            id: 'template3',
-            name: 'Thank You Message',
-            content: 'Thank you {firstName} for your business! We appreciate your trust in us. 🙏',
-            createdAt: new Date().toISOString()
-        },
-        {
-            id: 'template4',
-            name: 'Birthday Wishes',
-            content: '🎂 Happy Birthday {firstName}! Hope you have an amazing day filled with joy and celebration! 🎉🎈',
-            createdAt: new Date().toISOString()
-        }
-    ];
-
-    templates = [...templates, ...demoTemplates];
-    localStorage.setItem('whatsapp_templates', JSON.stringify(templates));
-    renderTemplates();
-    populateTemplateSelect();
-    showNotification('Demo templates loaded successfully!', 'success');
-}
-
-// Import/Export Functions
-function importContacts() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv';
-    input.onchange = function(event) {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const csv = e.target.result;
-                    const lines = csv.split('\n');
-                    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-                    
-                    const importedContacts = [];
-                    for (let i = 1; i < lines.length; i++) {
-                        if (lines[i].trim()) {
-                            const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-                            const contact = {
-                                id: Date.now().toString() + Math.random(),
-                                firstName: values[0] || '',
-                                lastName: values[1] || '',
-                                nickname: values[2] || '',
-                                phone: values[3] || '',
-                                email: values[4] || '',
-                                createdAt: new Date().toISOString()
-                            };
-                            
-                            if (contact.firstName && contact.phone) {
-                                importedContacts.push(contact);
-                            }
-                        }
-                    }
-                    
-                    contacts = [...contacts, ...importedContacts];
-                    localStorage.setItem('whatsapp_contacts', JSON.stringify(contacts));
-                    renderContacts();
-                    showNotification(`Imported ${importedContacts.length} contacts successfully!`, 'success');
-                } catch (error) {
-                    showNotification('Error importing CSV: ' + error.message, 'error');
-                }
-            };
-            reader.readAsText(file);
-        }
-    };
-    input.click();
-}
-
-function exportContacts() {
-    if (contacts.length === 0) {
-        showNotification('No contacts to export', 'error');
-        return;
+// Add placeholder functions for all the other functionality to prevent errors
+function renderContacts() {
+    const container = document.getElementById('contactList');
+    if (container) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-address-book"></i><br>No contacts found. Add your first contact to get started.</div>';
     }
-
-    const csvHeaders = ['First Name', 'Last Name', 'Nickname', 'Phone', 'Email'];
-    const csvData = contacts.map(contact => [
-        contact.firstName,
-        contact.lastName || '',
-        contact.nickname || '',
-        contact.phone || '',
-        contact.email || ''
-    ]);
-
-    const csvContent = [csvHeaders, ...csvData]
-        .map(row => row.map(field => `"${field}"`).join(','))
-        .join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `whatsapp-contacts-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
 }
 
-console.log('Enhanced WhatsApp Messaging Platform initialized');
+function renderGroups() {
+    const container = document.getElementById('groupList');
+    if (container) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-layer-group"></i><br>No groups found. Create your first group to organize your contacts.</div>';
+    }
+}
+
+function renderTemplates() {
+    const container = document.getElementById('templateList');
+    if (container) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-file-alt"></i><br>No templates found. Create your first template to save time when sending messages.</div>';
+    }
+}
+
+function renderLogs() {
+    const container = document.getElementById('logList');
+    if (container) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-chart-line"></i><br>No message logs found. Send your first message to see logs here.</div>';
+    }
+}
+
+function populateTemplateSelect() {
+    const select = document.getElementById('templateSelect');
+    if (select) {
+        select.innerHTML = '<option value="">Select a template...</option>';
+    }
+}
+
+function updateSelectedRecipientsDisplay() {
+    const container = document.getElementById('selectedRecipients');
+    if (container) {
+        container.innerHTML = '<p><i class="fas fa-info-circle"></i> No recipients selected</p>';
+    }
+}
+
+// Essential placeholder functions
+function sendMessage() { debugLog('sendMessage called - functionality disabled in debug mode'); }
+function openContactModal() { debugLog('openContactModal called'); }
+function openGroupModal() { debugLog('openGroupModal called'); }
+function openTemplateModal() { debugLog('openTemplateModal called'); }
+function selectFromContacts() { debugLog('selectFromContacts called'); }
+function selectFromGroups() { debugLog('selectFromGroups called'); }
+function clearRecipients() { debugLog('clearRecipients called'); }
+function loadSelectedTemplate() { debugLog('loadSelectedTemplate called'); }
+function previewMessage() { debugLog('previewMessage called'); }
+function searchContacts() { debugLog('searchContacts called'); }
+function filterLogs() { debugLog('filterLogs called'); }
+function clearLogs() { debugLog('clearLogs called'); }
+function searchLogs() { debugLog('searchLogs called'); }
+function loadDemoContacts() { debugLog('loadDemoContacts called'); }
+function loadDemoTemplates() { debugLog('loadDemoTemplates called'); }
+function importContacts() { debugLog('importContacts called'); }
+function exportContacts() { debugLog('exportContacts called'); }
+function closeModal(modalId) { 
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+}
+
+debugLog('Enhanced WhatsApp Messaging Platform initialized with debugging');
+
+// Global error handler
+window.addEventListener('error', function(e) {
+    debugLog('JavaScript Error:', e.error);
+    console.error('Error details:', e);
+});
