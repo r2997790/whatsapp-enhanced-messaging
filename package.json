@@ -1,11 +1,12 @@
 {
   "name": "whatsapp-enhanced-messaging",
-  "version": "2.0.1",
-  "description": "Enhanced WhatsApp messaging platform with templates, personalization, contact management, and Baileys API integration",
-  "main": "server.js",
+  "version": "3.0.0-step3a",
+  "description": "Enhanced WhatsApp messaging platform with contacts, groups, templates, message logs, and data management - Step 3A",
+  "main": "server-step3a-data-management.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node server-step3a-data-management.js",
+    "dev": "nodemon server-step3a-data-management.js",
+    "start:original": "node server.js"
   },
   "keywords": [
     "whatsapp",
@@ -13,7 +14,11 @@
     "baileys",
     "bulk-messaging",
     "templates",
-    "personalization"
+    "personalization",
+    "contact-management",
+    "group-management",
+    "message-logs",
+    "analytics"
   ],
   "author": "r2997790",
   "license": "MIT",
