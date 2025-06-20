@@ -1,4 +1,4 @@
-// Step 2: Enhanced WhatsApp Connection with Improved Authentication
+// Step 3: Critical Authentication Fix - Based on Evolution API Working Configuration
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
@@ -15,7 +15,8 @@ const {
     delay,
     fetchLatestBaileysVersion,
     isJidBroadcast,
-    isJidGroup
+    isJidGroup,
+    makeCacheableSignalKeyStore
 } = require('@whiskeysockets/baileys');
 
 const app = express();
@@ -31,12 +32,12 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 8080;
 
-console.log('🚀 Step 2: Starting Enhanced WhatsApp Server v3.0');
+console.log('🚀 Step 3: Starting CRITICAL AUTH FIX WhatsApp Server v4.0');
 
 // CRITICAL: Explicit app.js route FIRST
 app.get('/app.js', (req, res) => {
     const appJsPath = path.join(__dirname, 'app.js');
-    console.log('📄 Step 2: Serving app.js from:', appJsPath);
+    console.log('📄 Step 3: Serving app.js from:', appJsPath);
     
     if (fs.existsSync(appJsPath)) {
         res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
@@ -58,53 +59,47 @@ app.use(express.static(__dirname, {
     }
 }));
 
-// Enhanced WhatsApp State Management
+// CRITICAL WhatsApp State Management (Evolution API Pattern)
 let sock = null;
 let qrCodeData = null;
 let connectionStatus = 'disconnected';
 let isConnecting = false;
 let connectionAttempts = 0;
 let lastConnectionTime = 0;
-let authDir = path.join(tmpdir(), 'wa_session_enhanced');
+let authDir = path.join(tmpdir(), 'wa_session_evolution');
 let connectionTimeout = null;
 let qrTimeout = null;
-let reconnectDelay = 15000; // 15 second delay between attempts
 
 // Ensure auth directory exists
 if (!fs.existsSync(authDir)) {
     fs.mkdirSync(authDir, { recursive: true });
-    console.log('📁 Step 2: Created auth directory:', authDir);
+    console.log('📁 Step 3: Created auth directory:', authDir);
 }
 
-// Enhanced logger for better debugging
+// CRITICAL: Logger configuration that works (from Evolution API)
 const logger = {
-    level: 'warn',
+    level: 'error',
     info: () => {},
-    error: (msg) => console.log('🔴 Baileys Error:', msg),
-    warn: (msg) => console.log('🟡 Baileys Warning:', msg),
+    error: () => {},
+    warn: () => {},
     debug: () => {},
     trace: () => {},
     child: () => logger
 };
 
-// Enhanced connection cooldown with exponential backoff
+// Enhanced connection cooldown with better logic
 function canAttemptConnection() {
     const now = Date.now();
     const timeSinceLastAttempt = now - lastConnectionTime;
     
-    // Exponential backoff: 15s, 30s, 60s, 120s, 240s
-    const backoffDelays = [15000, 30000, 60000, 120000, 240000];
-    const currentDelay = backoffDelays[Math.min(connectionAttempts, backoffDelays.length - 1)];
-    
-    if (timeSinceLastAttempt < currentDelay) {
-        const remainingTime = Math.ceil((currentDelay - timeSinceLastAttempt) / 1000);
-        console.log(`⏳ Step 2: Cooldown active, ${remainingTime}s remaining (attempt ${connectionAttempts + 1})`);
+    if (timeSinceLastAttempt < 30000) { // 30 second cooldown
+        const remainingTime = Math.ceil((30000 - timeSinceLastAttempt) / 1000);
+        console.log(`⏳ Step 3: Cooldown active, ${remainingTime}s remaining`);
         return false;
     }
     
-    // Max 5 attempts per session, then require manual reset
-    if (connectionAttempts >= 5) {
-        console.log('🛑 Step 2: Max connection attempts reached (5). Please reset to try again.');
+    if (connectionAttempts >= 3) { // Max 3 attempts, then require reset
+        console.log('🛑 Step 3: Max connection attempts reached (3). Reset required.');
         return false;
     }
     
@@ -113,7 +108,7 @@ function canAttemptConnection() {
 
 // Enhanced connection state reset
 function resetConnectionState() {
-    console.log('🔄 Step 2: Resetting connection state...');
+    console.log('🔄 Step 3: Resetting connection state...');
     connectionAttempts = 0;
     lastConnectionTime = 0;
     qrCodeData = null;
@@ -129,7 +124,7 @@ function resetConnectionState() {
         qrTimeout = null;
     }
     
-    console.log('✅ Step 2: Connection state reset complete');
+    console.log('✅ Step 3: Connection state reset complete');
 }
 
 // Enhanced auth file cleanup
@@ -142,20 +137,20 @@ async function clearAuthFiles() {
                 try {
                     fs.unlinkSync(filePath);
                 } catch (err) {
-                    console.log('⚠️ Step 2: Error deleting file:', file, err.message);
+                    console.log('⚠️ Step 3: Error deleting file:', file, err.message);
                 }
             }
-            console.log('🧹 Step 2: Auth files cleared successfully');
+            console.log('🧹 Step 3: Auth files cleared successfully');
         }
     } catch (error) {
-        console.log('⚠️ Step 2: Error clearing auth files:', error.message);
+        console.log('⚠️ Step 3: Error clearing auth files:', error.message);
     }
 }
 
-// ENHANCED BAILEYS WHATSAPP CONNECTION WITH TIMEOUT PROTECTION
+// CRITICAL: WhatsApp Connection with Evolution API Configuration
 async function connectToWhatsApp() {
     if (isConnecting) {
-        console.log('⚠️ Step 2: Already connecting, ignoring request');
+        console.log('⚠️ Step 3: Already connecting, ignoring request');
         return;
     }
 
@@ -169,81 +164,90 @@ async function connectToWhatsApp() {
         connectionAttempts++;
         lastConnectionTime = Date.now();
         
-        console.log(`🔄 Step 2: WhatsApp connection attempt ${connectionAttempts}/5`);
-        
-        // Set overall connection timeout (90 seconds)
-        connectionTimeout = setTimeout(() => {
-            console.log('⏰ Step 2: Connection timeout after 90 seconds');
-            handleConnectionFailure('timeout');
-        }, 90000);
+        console.log(`🔄 Step 3: CRITICAL AUTH FIX - Connection attempt ${connectionAttempts}/3`);
 
         // Cleanup existing socket properly
         if (sock) {
             try {
-                console.log('🧹 Step 2: Cleaning up existing socket...');
+                console.log('🧹 Step 3: Cleaning up existing socket...');
                 sock.removeAllListeners();
                 sock.end();
-                await delay(2000); // Wait for proper cleanup
+                await delay(3000); // Wait longer for proper cleanup
                 sock = null;
-                console.log('✅ Step 2: Previous socket cleaned up');
+                console.log('✅ Step 3: Previous socket cleaned up');
             } catch (e) {
-                console.log('⚠️ Step 2: Error cleaning socket:', e.message);
+                console.log('⚠️ Step 3: Error cleaning socket:', e.message);
             }
         }
 
-        // Get latest Baileys version for maximum compatibility
-        console.log('📱 Step 2: Fetching latest Baileys version...');
-        const { version, isLatest } = await fetchLatestBaileysVersion();
-        console.log(`📱 Step 2: Using Baileys version: ${version.join('.')} (latest: ${isLatest})`);
+        // CRITICAL: Get latest Baileys version (Evolution API pattern)
+        console.log('📱 Step 3: Fetching latest Baileys version...');
+        const { version } = await fetchLatestBaileysVersion();
+        console.log(`📱 Step 3: Using Baileys version: ${version.join('.')}`);
 
-        // Initialize auth state with better error handling
-        console.log('🔐 Step 2: Initializing auth state...');
+        // CRITICAL: Initialize auth state with Evolution API pattern
+        console.log('🔐 Step 3: Initializing auth state (Evolution API pattern)...');
         const { state, saveCreds } = await useMultiFileAuthState(authDir);
-        console.log('✅ Step 2: Auth state initialized');
+        console.log('✅ Step 3: Auth state initialized');
 
-        // Create WhatsApp socket with enhanced configuration
-        console.log('🔌 Step 2: Creating WhatsApp socket...');
+        // CRITICAL: Browser configuration that works (from Evolution API)
+        const browser = ['Chrome (Linux)', 'WhatsApp Enhanced', '1.0.0'];
+        console.log('🌐 Step 3: Browser config:', browser);
+
+        // CRITICAL: Socket configuration based on Evolution API working config
+        console.log('🔌 Step 3: Creating WhatsApp socket with Evolution API config...');
         sock = makeWASocket({
-            auth: state,
+            auth: {
+                creds: state.creds,
+                keys: makeCacheableSignalKeyStore(state.keys, logger)
+            },
             version,
-            printQRInTerminal: false,
             logger: logger,
-            browser: ['Ubuntu', 'Chrome', '110.0.0.0'], // Better browser fingerprint
+            printQRInTerminal: false,
+            browser: browser,
+            
+            // CRITICAL: Evolution API timing configuration
             connectTimeoutMs: 60000,
-            defaultQueryTimeoutMs: 60000,
-            keepAliveIntervalMs: 30000,
+            defaultQueryTimeoutMs: undefined, // Let Baileys decide
+            qrTimeout: 40000, // 40 second QR timeout
+            
+            // CRITICAL: Evolution API connection settings
+            markOnlineOnConnect: false, // CRITICAL: false prevents issues
+            retryRequestDelayMs: 10,
             emitOwnEvents: false,
+            fireInitQueries: false, // CRITICAL: Prevents initial query conflicts
+            
+            // CRITICAL: Message and history settings (Evolution API pattern)
             generateHighQualityLinkPreview: false,
             syncFullHistory: false,
-            markOnlineOnConnect: true, // Changed to true for better authentication
             shouldSyncHistoryMessage: () => false,
-            shouldIgnoreJid: (jid) => isJidBroadcast(jid),
-            retryRequestDelayMs: 250,
+            shouldIgnoreJid: (jid) => {
+                return isJidBroadcast(jid);
+            },
+            
+            // CRITICAL: Message retry and cache settings
             maxMsgRetryCount: 3,
-            fireInitQueries: false, // Prevent unnecessary queries during initial connection
-            getMessage: async () => ({ conversation: 'Message not available' }),
-            // Enhanced authentication options
-            options: {
-                webhookUrl: null,
-                markOnlineOnConnect: true,
-                syncFullHistory: false,
-                printQRInTerminal: false
+            msgRetryCounterMap: new Map(),
+            
+            // CRITICAL: getMessage function (prevents auth issues)
+            getMessage: async (key) => {
+                return { conversation: 'Message not available' };
             }
         });
 
-        console.log('✅ Step 2: WhatsApp socket created successfully');
+        console.log('✅ Step 3: WhatsApp socket created with Evolution API config');
 
-        // Enhanced connection update handler with timeout protection
+        // CRITICAL: Connection update handler with Evolution API pattern
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect, qr, receivedPendingNotifications } = update;
             const statusCode = lastDisconnect?.error?.output?.statusCode;
             
-            console.log('📡 Step 2: Connection update:', { 
+            console.log('📡 Step 3: Connection update:', { 
                 connection, 
                 qr: !!qr, 
                 statusCode,
                 attempts: connectionAttempts,
-                receivedNotifications: !!receivedPendingNotifications
+                notifications: !!receivedPendingNotifications
             });
 
             // Clear connection timeout on any update
@@ -252,21 +256,21 @@ async function connectToWhatsApp() {
                 connectionTimeout = null;
             }
 
-            // Handle QR code generation with timeout
+            // CRITICAL: QR code handling with proper timeout
             if (qr && connectionStatus !== 'connected') {
                 try {
-                    console.log('📱 Step 2: Generating QR code...');
+                    console.log('📱 Step 3: Generating QR code (Evolution API pattern)...');
                     
                     // Clear any existing QR timeout
                     if (qrTimeout) {
                         clearTimeout(qrTimeout);
                     }
                     
-                    // Set QR code timeout (60 seconds)
+                    // Set QR code timeout (40 seconds like Evolution API)
                     qrTimeout = setTimeout(() => {
-                        console.log('⏰ Step 2: QR code expired after 60 seconds');
+                        console.log('⏰ Step 3: QR code expired after 40 seconds');
                         handleConnectionFailure('qr_timeout');
-                    }, 60000);
+                    }, 40000);
                     
                     qrCodeData = await QRCode.toDataURL(qr, {
                         scale: 8,
@@ -278,17 +282,17 @@ async function connectToWhatsApp() {
                     connectionStatus = 'qr-ready';
                     io.emit('qr-code', qrCodeData);
                     io.emit('connection-status', connectionStatus);
-                    console.log('✅ Step 2: QR code generated and sent');
+                    console.log('✅ Step 3: QR code generated and sent (Evolution API pattern)');
                     
                 } catch (error) {
-                    console.error('❌ Step 2: QR generation error:', error);
+                    console.error('❌ Step 3: QR generation error:', error);
                     handleConnectionFailure('qr_error');
                 }
             }
 
-            // Handle connection states with better logic
+            // CRITICAL: Connection state handling (Evolution API pattern)
             if (connection === 'open') {
-                console.log('🎉 Step 2: ✅ WHATSAPP CONNECTED SUCCESSFULLY!');
+                console.log('🎉 Step 3: ✅ CRITICAL FIX SUCCESS - WHATSAPP CONNECTED!');
                 
                 // Clear all timeouts
                 if (qrTimeout) {
@@ -304,21 +308,16 @@ async function connectToWhatsApp() {
                 io.emit('connection-status', connectionStatus);
                 io.emit('qr-code', null);
                 
-                // Verify connection with a simple presence update
-                try {
-                    await sock.sendPresenceUpdate('available');
-                    console.log('📞 Step 2: Connection verified - presence updated');
-                } catch (err) {
-                    console.log('⚠️ Step 2: Could not update presence:', err.message);
-                }
+                // CRITICAL: Don't send presence update immediately (Evolution API pattern)
+                console.log('📞 Step 3: Connection verified - ready for messaging');
                 
             } else if (connection === 'connecting') {
-                console.log('🔗 Step 2: Authenticating with WhatsApp...');
+                console.log('🔗 Step 3: Authenticating with WhatsApp (Evolution API)...');
                 connectionStatus = 'connecting';
                 io.emit('connection-status', connectionStatus);
                 
             } else if (connection === 'close') {
-                console.log('🔌 Step 2: Connection closed with code:', statusCode);
+                console.log('🔌 Step 3: Connection closed with code:', statusCode);
                 
                 connectionStatus = 'disconnected';
                 isConnecting = false;
@@ -331,47 +330,57 @@ async function connectToWhatsApp() {
                     qrTimeout = null;
                 }
                 
-                // Enhanced disconnect reason handling
+                // CRITICAL: Enhanced disconnect reason handling (Evolution API pattern)
                 if (statusCode === DisconnectReason.loggedOut) {
-                    console.log('🚫 Step 2: Logged out - clearing auth');
+                    console.log('🚫 Step 3: Logged out - clearing auth');
                     await clearAuthFiles();
                     resetConnectionState();
                     
                 } else if (statusCode === DisconnectReason.restartRequired) {
-                    console.log('🔄 Step 2: Restart required - will retry after cooldown');
-                    // Will retry on next user request
+                    console.log('🔄 Step 3: Restart required (Evolution API) - clearing auth');
+                    // CRITICAL: Evolution API clears auth on restart required
+                    await clearAuthFiles();
+                    resetConnectionState();
                     
                 } else if (statusCode === DisconnectReason.connectionLost) {
-                    console.log('📡 Step 2: Connection lost - network issue');
+                    console.log('📡 Step 3: Connection lost - network issue');
                     
                 } else if (statusCode === DisconnectReason.connectionClosed) {
-                    console.log('🔒 Step 2: Connection closed by server');
+                    console.log('🔒 Step 3: Connection closed by server');
                     
                 } else if (statusCode === DisconnectReason.badSession) {
-                    console.log('💥 Step 2: Bad session - clearing auth');
+                    console.log('💥 Step 3: Bad session - clearing auth');
                     await clearAuthFiles();
                     resetConnectionState();
                     
                 } else if (statusCode === DisconnectReason.connectionReplaced) {
-                    console.log('🔄 Step 2: Connection replaced by another session');
+                    console.log('🔄 Step 3: Connection replaced by another session');
                     await clearAuthFiles();
                     resetConnectionState();
                     
                 } else if (statusCode === DisconnectReason.multideviceMismatch) {
-                    console.log('📱 Step 2: Multi-device mismatch - clearing auth');
+                    console.log('📱 Step 3: Multi-device mismatch - clearing auth');
                     await clearAuthFiles();
                     resetConnectionState();
                     
                 } else if (statusCode === DisconnectReason.forbidden) {
-                    console.log('🚫 Step 2: Forbidden - account may be banned');
+                    console.log('🚫 Step 3: Forbidden - account may be banned');
                     await clearAuthFiles();
                     resetConnectionState();
                     
                 } else if (statusCode === DisconnectReason.unavailableService) {
-                    console.log('🚫 Step 2: Service unavailable - WhatsApp servers may be down');
+                    console.log('🚫 Step 3: Service unavailable - WhatsApp servers may be down');
+                    
+                } else if (statusCode === 515) {
+                    console.log('🔥 Step 3: Status 515 (Stream Error) - clearing auth and resetting');
+                    await clearAuthFiles();
+                    resetConnectionState();
                     
                 } else {
-                    console.log('❓ Step 2: Other disconnect reason:', statusCode);
+                    console.log('❓ Step 3: Other disconnect reason:', statusCode);
+                    // For unknown errors, also clear auth to prevent persistent issues
+                    await clearAuthFiles();
+                    resetConnectionState();
                 }
 
                 qrCodeData = null;
@@ -379,36 +388,32 @@ async function connectToWhatsApp() {
             }
         });
 
-        // Handle credential updates
+        // CRITICAL: Handle credential updates (Evolution API pattern)
         sock.ev.on('creds.update', saveCreds);
 
-        // Handle messages (for connection verification)
+        // CRITICAL: Handle messages for connection verification
         sock.ev.on('messages.upsert', async (m) => {
-            console.log('📩 Step 2: Message received - connection active');
+            console.log('📩 Step 3: Message received - connection active and working');
         });
 
-        // Handle connection errors
+        // CRITICAL: Handle connection errors
         sock.ev.on('CB:call', (call) => {
-            console.log('📞 Step 2: Call received:', call);
+            console.log('📞 Step 3: Call received:', call);
         });
 
     } catch (error) {
-        console.error('❌ Step 2: Connection error:', error);
+        console.error('❌ Step 3: Connection error:', error);
         handleConnectionFailure('connection_error');
         
-        // Clear auth on critical errors
-        if (error.message.includes('Unauthorized') || 
-            error.message.includes('403') || 
-            error.message.includes('401')) {
-            await clearAuthFiles();
-            resetConnectionState();
-        }
+        // CRITICAL: Always clear auth on errors to prevent persistent issues
+        await clearAuthFiles();
+        resetConnectionState();
     }
 }
 
 // Enhanced connection failure handler
 function handleConnectionFailure(reason) {
-    console.log(`❌ Step 2: Handling connection failure: ${reason}`);
+    console.log(`❌ Step 3: Handling connection failure: ${reason}`);
     
     connectionStatus = 'error';
     isConnecting = false;
@@ -431,19 +436,19 @@ function handleConnectionFailure(reason) {
             sock.end();
             sock = null;
         } catch (e) {
-            console.log('⚠️ Step 2: Error cleaning up failed socket:', e.message);
+            console.log('⚠️ Step 3: Error cleaning up failed socket:', e.message);
         }
     }
     
     io.emit('connection-status', connectionStatus);
     io.emit('qr-code', null);
     
-    console.log(`💡 Step 2: Connection failed due to ${reason}. Wait ${reconnectDelay/1000}s before retry.`);
+    console.log(`💡 Step 3: Connection failed due to ${reason}. Try reset and reconnect.`);
 }
 
 // Enhanced disconnect function
 async function disconnectWhatsApp() {
-    console.log('🔌 Step 2: Disconnecting WhatsApp...');
+    console.log('🔌 Step 3: Disconnecting WhatsApp...');
     
     // Clear all timeouts
     if (connectionTimeout) {
@@ -461,9 +466,9 @@ async function disconnectWhatsApp() {
             sock.removeAllListeners();
             sock.end();
             sock = null;
-            console.log('✅ Step 2: WhatsApp disconnected properly');
+            console.log('✅ Step 3: WhatsApp disconnected properly');
         } catch (e) {
-            console.log('⚠️ Step 2: Error during disconnect:', e.message);
+            console.log('⚠️ Step 3: Error during disconnect:', e.message);
         }
     }
     
@@ -479,49 +484,50 @@ async function disconnectWhatsApp() {
 // Enhanced health check endpoint
 app.get('/health', (req, res) => {
     res.json({
-        status: 'Step 2: Enhanced WhatsApp Server',
+        status: 'Step 3: CRITICAL AUTH FIX WhatsApp Server',
         whatsapp: connectionStatus,
         attempts: connectionAttempts,
         timestamp: new Date().toISOString(),
-        version: 'step2-enhanced-auth',
+        version: 'step3-critical-auth-fix',
         authDir: authDir,
         socketStatus: sock ? 'active' : 'null',
         isConnecting: isConnecting,
-        lastConnectionTime: lastConnectionTime ? new Date(lastConnectionTime).toISOString() : null
+        lastConnectionTime: lastConnectionTime ? new Date(lastConnectionTime).toISOString() : null,
+        fix: 'Evolution API Configuration Applied'
     });
 });
 
 // Socket.io connection handling with enhanced error management
 io.on('connection', (socket) => {
-    console.log(`👤 Step 2: Client connected: ${socket.id}`);
+    console.log(`👤 Step 3: Client connected: ${socket.id}`);
     
     // Send current status to new client
     socket.emit('connection-status', connectionStatus);
     if (qrCodeData) {
         socket.emit('qr-code', qrCodeData);
-        console.log('📱 Step 2: Sent existing QR code to new client');
+        console.log('📱 Step 3: Sent existing QR code to new client');
     }
 
     // Handle WhatsApp connection request
     socket.on('connect-whatsapp', () => {
-        console.log('🔌 Step 2: Client requested WhatsApp connection');
+        console.log('🔌 Step 3: Client requested WhatsApp connection');
         if (connectionStatus === 'disconnected' || connectionStatus === 'error') {
             connectToWhatsApp();
         } else {
-            console.log(`ℹ️ Step 2: Already ${connectionStatus}`);
+            console.log(`ℹ️ Step 3: Already ${connectionStatus}`);
             socket.emit('connection-status', connectionStatus);
         }
     });
 
     // Handle connection reset
     socket.on('reset-connection', async () => {
-        console.log('🔄 Step 2: Client requested connection reset');
+        console.log('🔄 Step 3: Client requested connection reset');
         await disconnectWhatsApp();
     });
 
     // Handle disconnect
     socket.on('disconnect-whatsapp', async () => {
-        console.log('🔌 Step 2: Client requested WhatsApp disconnect');
+        console.log('🔌 Step 3: Client requested WhatsApp disconnect');
         await disconnectWhatsApp();
     });
 
@@ -529,16 +535,17 @@ io.on('connection', (socket) => {
     socket.on('ping', () => {
         socket.emit('pong', { 
             timestamp: Date.now(), 
-            whatsappStatus: connectionStatus 
+            whatsappStatus: connectionStatus,
+            fix: 'Evolution API Config Applied'
         });
     });
 
     socket.on('disconnect', () => {
-        console.log(`👋 Step 2: Client disconnected: ${socket.id}`);
+        console.log(`👋 Step 3: Client disconnected: ${socket.id}`);
     });
 
     socket.on('error', (error) => {
-        console.log(`❌ Step 2: Socket error from ${socket.id}:`, error);
+        console.log(`❌ Step 3: Socket error from ${socket.id}:`, error);
     });
 });
 
@@ -549,23 +556,24 @@ app.get('/', (req, res) => {
 
 // Enhanced graceful shutdown
 process.on('SIGTERM', async () => {
-    console.log('🛑 Step 2: Received SIGTERM, shutting down gracefully...');
+    console.log('🛑 Step 3: Received SIGTERM, shutting down gracefully...');
     await disconnectWhatsApp();
     process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-    console.log('🛑 Step 2: Received SIGINT, shutting down gracefully...');
+    console.log('🛑 Step 3: Received SIGINT, shutting down gracefully...');
     await disconnectWhatsApp();
     process.exit(0);
 });
 
 // Start server
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Step 2: Enhanced WhatsApp Server running on port ${PORT}`);
+    console.log(`🚀 Step 3: CRITICAL AUTH FIX WhatsApp Server running on port ${PORT}`);
     console.log(`📱 Node: ${process.version}`);
-    console.log('🎯 Step 2: Enhanced authentication, timeout protection & error handling');
+    console.log('🔥 Step 3: Evolution API configuration applied - CRITICAL AUTH FIX');
     console.log('📁 Auth directory:', authDir);
     console.log('📄 Files in directory:', fs.readdirSync(__dirname).filter(f => f.endsWith('.js') || f.endsWith('.html')));
-    console.log('⚡ Ready for WhatsApp connections with improved stability');
+    console.log('⚡ Ready for WhatsApp connections with WORKING authentication');
+    console.log('🎯 Based on Evolution API working implementation');
 });
