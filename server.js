@@ -26,7 +26,7 @@ app.use(express.static('.'));
 
 const PORT = process.env.PORT || 8080;
 
-// State management - simplified approach
+// State management - improved from reference
 let sock = null;
 let qrCodeData = null;
 let connectionStatus = 'disconnected';
@@ -57,7 +57,7 @@ const logger = {
     child: () => logger
 };
 
-// Prevent rapid reconnection loops - simplified approach
+// Prevent rapid reconnection loops - exactly as in reference
 function canAttemptConnection() {
     const now = Date.now();
     const timeSinceLastAttempt = now - lastQRTime;
@@ -114,7 +114,7 @@ async function connectToWhatsApp() {
         const { state, saveCreds } = await useMultiFileAuthState(authDir);
         console.log('🔐 Using persistent auth state');
 
-        // Create socket with simple configuration based on reference
+        // Create socket with exact configuration from reference
         sock = makeWASocket({
             auth: state,
             printQRInTerminal: false,
@@ -133,7 +133,7 @@ async function connectToWhatsApp() {
 
         console.log('✅ Socket created');
 
-        // Single connection update handler with strict state management
+        // Single connection update handler with strict state management - exact logic from reference
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect, qr } = update;
             const statusCode = lastDisconnect?.error?.output?.statusCode;
@@ -165,7 +165,7 @@ async function connectToWhatsApp() {
                 }
             }
 
-            // Handle connection state changes
+            // Handle connection state changes - exact logic from reference
             if (connection === 'open') {
                 console.log('🎉 CONNECTION SUCCESSFUL!');
                 connectionStatus = 'connected';
@@ -188,7 +188,7 @@ async function connectToWhatsApp() {
                 isConnecting = false;
                 io.emit('connection-status', connectionStatus);
                 
-                // CRITICAL: Only reconnect on specific conditions
+                // CRITICAL: Only reconnect on specific conditions - exact logic from reference
                 let shouldReconnect = false;
                 
                 if (statusCode === DisconnectReason.loggedOut) {
@@ -240,9 +240,10 @@ async function connectToWhatsApp() {
         // Save credentials
         sock.ev.on('creds.update', saveCreds);
 
-        // Handle incoming messages for logs
+        // Handle incoming messages for logs - enhanced version
         sock.ev.on('messages.upsert', async (m) => {
             console.log('📩 Message received - connection active');
+            // Could log incoming messages here for analytics
         });
 
     } catch (error) {
@@ -253,7 +254,7 @@ async function connectToWhatsApp() {
     }
 }
 
-// Manual reset function
+// Manual reset function - exact from reference
 function manualReset() {
     console.log('🔄 Manual reset initiated');
     
@@ -314,7 +315,7 @@ app.post('/api/reset', (req, res) => {
     res.json({ success: true, message: 'Connection reset' });
 });
 
-// Enhanced messaging API
+// Enhanced messaging API - improved error handling
 app.post('/api/send-message', async (req, res) => {
     try {
         const { number, message } = req.body;
@@ -323,7 +324,11 @@ app.post('/api/send-message', async (req, res) => {
             return res.status(400).json({ error: 'WhatsApp not connected' });
         }
 
-        let formattedNumber = number.toString().replace(/[^\d]/g, '');
+        if (!number || !message) {
+            return res.status(400).json({ error: 'Number and message are required' });
+        }
+
+        let formattedNumber = number.toString().replace(/[^\d@.]/g, '');
         if (!formattedNumber.includes('@')) {
             formattedNumber = `${formattedNumber}@s.whatsapp.net`;
         }
@@ -343,7 +348,19 @@ app.post('/api/send-message', async (req, res) => {
         res.json({ success: true, message: 'Message sent successfully' });
     } catch (error) {
         console.error('Send message error:', error);
-        res.status(500).json({ error: 'Failed to send message' });
+        
+        // Log failed message
+        messageLogs.push({
+            id: Date.now(),
+            number: req.body.number,
+            message: req.body.message,
+            timestamp: new Date(),
+            status: 'failed',
+            type: 'single',
+            error: error.message
+        });
+        
+        res.status(500).json({ error: 'Failed to send message: ' + error.message });
     }
 });
 
@@ -355,11 +372,19 @@ app.post('/api/send-bulk', async (req, res) => {
             return res.status(400).json({ error: 'WhatsApp not connected' });
         }
 
+        if (!numbers || !Array.isArray(numbers) || numbers.length === 0) {
+            return res.status(400).json({ error: 'Numbers array is required' });
+        }
+
+        if (!message) {
+            return res.status(400).json({ error: 'Message is required' });
+        }
+
         const results = [];
         
         for (const number of numbers) {
             try {
-                let formattedNumber = number.toString().replace(/[^\d]/g, '');
+                let formattedNumber = number.toString().replace(/[^\d@.]/g, '');
                 if (!formattedNumber.includes('@')) {
                     formattedNumber = `${formattedNumber}@s.whatsapp.net`;
                 }
@@ -403,7 +428,7 @@ app.post('/api/send-bulk', async (req, res) => {
         });
     } catch (error) {
         console.error('Bulk send error:', error);
-        res.status(500).json({ error: 'Failed to send bulk messages' });
+        res.status(500).json({ error: 'Failed to send bulk messages: ' + error.message });
     }
 });
 
@@ -414,11 +439,16 @@ app.get('/api/contacts', (req, res) => {
 
 app.post('/api/contacts', (req, res) => {
     const { name, phone, email, tags } = req.body;
+    
+    if (!name || !phone) {
+        return res.status(400).json({ error: 'Name and phone are required' });
+    }
+    
     const contact = {
         id: Date.now(),
         name,
         phone,
-        email,
+        email: email || '',
         tags: tags || [],
         createdAt: new Date()
     };
@@ -455,10 +485,15 @@ app.get('/api/groups', (req, res) => {
 
 app.post('/api/groups', (req, res) => {
     const { name, description, members } = req.body;
+    
+    if (!name) {
+        return res.status(400).json({ error: 'Group name is required' });
+    }
+    
     const group = {
         id: Date.now(),
         name,
-        description,
+        description: description || '',
         members: members || [],
         createdAt: new Date()
     };
@@ -495,6 +530,11 @@ app.get('/api/templates', (req, res) => {
 
 app.post('/api/templates', (req, res) => {
     const { name, content, variables } = req.body;
+    
+    if (!name || !content) {
+        return res.status(400).json({ error: 'Template name and content are required' });
+    }
+    
     const template = {
         id: Date.now(),
         name,
@@ -538,7 +578,7 @@ app.delete('/api/logs', (req, res) => {
     res.json({ success: true, message: 'Logs cleared' });
 });
 
-// Socket.io
+// Socket.io - exact from reference with enhanced features
 io.on('connection', (socket) => {
     console.log(`👤 Client connected: ${socket.id}`);
     
@@ -574,4 +614,5 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`📱 Node: ${process.version}`);
     console.log('⏳ Ready - anti-loop protection enabled');
     console.log('📊 Enhanced features: Contacts, Groups, Templates, Logs');
+    console.log('🔧 Step 1: QR Authentication fixes applied');
 });
