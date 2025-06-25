@@ -5,394 +5,642 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enhanced WhatsApp Messaging Platform</title>
     <script src="/socket.io/socket.io.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            margin: 0; padding: 0; background-color: #0a0a0a; color: #ffffff; 
-            font-family: 'Space Mono', monospace; font-weight: 400; min-height: 100vh; 
-            display: flex; justify-content: center; align-items: flex-start; 
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .app-wrapper { width: 100%; max-width: 1200px; margin: 20px; min-height: calc(100vh - 40px); }
-        .container { 
-            width: 100%; background-color: #1a1a1a; border-radius: 10px; border: 1px solid #333; 
-            overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+        
+        body {
+            font-family: 'Space Mono', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
         }
-        .header { 
-            background-color: #0a0a0a; color: #00ff88; padding: 30px 20px; text-align: center; 
-            border-bottom: 1px solid #333; 
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
-        .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 10px; }
-        .header p { font-size: 14px; font-weight: 400; color: #ffffff; }
-        .whatsapp-status { 
-            background-color: #1a1a1a; padding: 15px 20px; border-bottom: 1px solid #333; 
-            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; 
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
         }
-        .status-indicator { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
-        .status-dot { width: 12px; height: 12px; border-radius: 50%; background-color: #ff6b6b; }
-        .status-dot.connected { background-color: #00ff88; }
-        .status-dot.connecting { background-color: #ffb84d; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .connection-controls { display: flex; gap: 10px; flex-wrap: wrap; }
-        .qr-section { 
-            text-align: center; margin: 30px 20px; padding: 30px; background: #0a0a0a; 
-            border-radius: 15px; border: 2px solid #00ff88; 
+        
+        .title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
         }
-        .qr-section img { 
-            max-width: 300px; width: 100%; height: auto; border: 3px solid #00ff88; 
-            border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+        
+        .subtitle {
+            font-size: 1rem;
+            color: #888;
+            margin-bottom: 30px;
         }
-        .qr-instructions { margin-top: 20px; color: #ffffff; }
-        .qr-instructions h3 { color: #00ff88; margin-bottom: 10px; }
-        .primary-send-section { 
-            background-color: #0a0a0a; border: 2px solid #00ff88; border-radius: 10px; 
-            padding: 25px; margin: 20px; box-shadow: 0 0 20px rgba(0, 255, 136, 0.1); 
+        
+        .status-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            backdrop-filter: blur(10px);
         }
-        .primary-send-section h2 { 
-            color: #00ff88; margin-bottom: 20px; font-weight: 700; font-size: 24px; 
-            text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px; 
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 20px;
         }
-        .quick-send-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-        .quick-send-option { 
-            background-color: #1a1a1a; border: 1px solid #333; border-radius: 8px; 
-            padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s ease; 
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
         }
-        .quick-send-option:hover, .quick-send-option.selected { 
-            border-color: #00ff88; background-color: #111; transform: translateY(-2px); 
+        
+        .status-dot.connected {
+            background: #00ff88;
         }
-        .quick-send-option i { font-size: 32px; color: #00ff88; margin-bottom: 10px; }
-        .quick-send-option h3 { color: #00ff88; margin-bottom: 5px; font-size: 16px; }
-        .quick-send-option p { color: #999; font-size: 12px; }
-        .nav { 
-            background-color: #1a1a1a; padding: 15px; display: flex; flex-wrap: wrap; 
-            gap: 10px; border-bottom: 1px solid #333; 
+        
+        .status-dot.connecting {
+            background: #ffaa00;
         }
-        .nav-btn { 
-            background-color: #333; color: #fff; border: none; padding: 10px 14px; 
-            border-radius: 5px; cursor: pointer; font-weight: 600; font-family: 'Space Mono', monospace; 
-            transition: all 0.3s ease; font-size: 11px; display: flex; align-items: center; 
-            gap: 6px; flex: 1; min-width: 120px; justify-content: center; 
+        
+        .status-dot.disconnected {
+            background: #ff4444;
+            animation: none;
         }
-        .nav-btn:hover { background-color: #555; transform: translateY(-1px); }
-        .nav-btn.active { background-color: #00ff88; color: #000; }
-        .nav-btn.active:hover { background-color: #00cc6a; }
-        .content { padding: 20px; min-height: 500px; }
-        .section { display: none; }
-        .section.active { display: block; }
-        .section h2 { 
-            color: #00ff88; margin-bottom: 20px; font-weight: 700; font-size: 20px; 
-            display: flex; align-items: center; gap: 10px; 
+        
+        .status-dot.qr-ready {
+            background: #0088ff;
         }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { 
-            display: block; margin-bottom: 8px; font-weight: 700; 
-            color: #00ff88; font-size: 12px; 
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
-        .form-control { 
-            width: 100%; padding: 12px; border: 1px solid #555; border-radius: 5px; 
-            font-size: 14px; background-color: #333; color: #fff; 
-            font-family: 'Space Mono', monospace; transition: border-color 0.3s; 
+        
+        .qr-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            display: inline-block;
+            margin: 20px 0;
         }
-        .form-control:focus { 
-            outline: none; border-color: #00ff88; 
-            box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.1); 
+        
+        .qr-code {
+            max-width: 300px;
+            height: auto;
         }
-        .btn { 
-            background-color: #00ff88; color: #000; border: none; padding: 12px 20px; 
-            border-radius: 5px; cursor: pointer; font-weight: 700; 
-            font-family: 'Space Mono', monospace; transition: all 0.3s ease; 
-            font-size: 14px; display: inline-flex; align-items: center; 
-            gap: 8px; margin-right: 10px; margin-bottom: 10px; 
+        
+        .btn {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: #0a0a0a;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
         }
-        .btn:hover { background-color: #00cc6a; transform: translateY(-1px); }
-        .btn:disabled { background-color: #555; color: #999; cursor: not-allowed; transform: none; }
-        .btn-large { padding: 16px 32px; font-size: 16px; font-weight: 700; }
-        .btn-danger { background-color: #ff6b6b; color: #fff; }
-        .btn-warning { background-color: #ffb84d; color: #000; }
-        .btn-secondary { background-color: #555; color: #fff; }
-        .recipient-selector { 
-            background-color: #333; border-radius: 5px; padding: 15px; margin-bottom: 15px; 
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.3);
         }
-        .recipient-selector label { color: #00ff88; font-weight: 700; font-size: 14px; }
-        .selected-recipients { margin-top: 10px; max-height: 150px; overflow-y: auto; }
-        .recipient-tag { 
-            display: inline-block; background-color: #00ff88; color: #000; 
-            padding: 4px 8px; border-radius: 3px; font-size: 11px; 
-            font-weight: 700; margin: 2px; 
+        
+        .btn:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
-        .contact-grid { 
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
-            gap: 15px; margin-top: 20px; 
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        .contact-card { 
-            border: 1px solid #333; border-radius: 8px; padding: 15px; 
-            background-color: #0a0a0a; transition: all 0.3s ease; 
+        
+        .messaging-section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
         }
-        .contact-card:hover { 
-            border-color: #00ff88; background-color: #111; transform: translateY(-2px); 
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #00ff88;
+            margin-bottom: 20px;
+            text-align: center;
         }
-        .contact-card h4 { color: #00ff88; margin-bottom: 10px; font-weight: 700; font-size: 16px; }
-        .contact-card p { margin: 5px 0; font-size: 12px; font-weight: 400; }
-        .status-badge { 
-            display: inline-block; padding: 4px 8px; border-radius: 3px; 
-            font-size: 10px; font-weight: 700; text-transform: uppercase; margin: 2px; 
+        
+        .form-group {
+            margin-bottom: 20px;
         }
-        .status-sent { background-color: #00ff88; color: #000; }
-        .status-failed { background-color: #ff6b6b; color: #fff; }
-        .search-bar { position: relative; margin-bottom: 20px; }
-        .search-bar input { padding-left: 40px; }
-        .search-icon { 
-            position: absolute; left: 12px; top: 50%; transform: translateY(-50%); 
-            color: #00ff88; font-size: 14px; 
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 700;
+            color: #00ff88;
         }
-        .empty-state { 
-            text-align: center; padding: 40px; color: #999; font-size: 14px; 
-            background-color: #0a0a0a; border-radius: 8px; border: 1px solid #333; 
+        
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #ffffff;
+            font-family: 'Space Mono', monospace;
+            font-size: 1rem;
         }
-        .modal { 
-            display: none; position: fixed; z-index: 1000; left: 0; top: 0; 
-            width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); 
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #00ff88;
+            box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.2);
         }
-        .modal-content { 
-            background-color: #1a1a1a; margin: 5% auto; padding: 20px; 
-            border-radius: 8px; border: 1px solid #333; width: 90%; 
-            max-width: 600px; max-height: 80vh; overflow-y: auto; 
+        
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
         }
-        .modal-content h3 { color: #00ff88; margin-bottom: 20px; font-weight: 700; font-size: 18px; }
-        .close { 
-            color: #999; float: right; font-size: 24px; 
-            font-weight: bold; cursor: pointer; line-height: 1; 
+        
+        .message-result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 700;
         }
-        .close:hover { color: #00ff88; }
-        .checkbox-group { 
-            display: flex; flex-wrap: wrap; gap: 10px; max-height: 200px; 
-            overflow-y: auto; border: 1px solid #333; padding: 10px; 
-            border-radius: 5px; background-color: #0a0a0a; 
+        
+        .message-result.success {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid #00ff88;
+            color: #00ff88;
         }
-        .checkbox-item { 
-            display: flex; align-items: center; gap: 8px; 
-            min-width: 200px; padding: 5px; 
+        
+        .message-result.error {
+            background: rgba(255, 68, 68, 0.2);
+            border: 1px solid #ff4444;
+            color: #ff4444;
         }
-        .checkbox-item input[type="checkbox"] { width: 16px; height: 16px; }
-        .checkbox-item label { 
-            font-size: 12px; font-weight: 400; color: #fff; cursor: pointer; 
+        
+        .instructions {
+            background: rgba(0, 136, 255, 0.1);
+            border: 1px solid rgba(0, 136, 255, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
         }
-        .fix-status {
-            position: fixed; top: 10px; left: 10px; background: #00ff88; color: #000;
-            padding: 10px; border-radius: 5px; font-weight: bold; font-size: 12px;
-            z-index: 9999; max-width: 300px; white-space: pre-line;
+        
+        .instructions h3 {
+            color: #0088ff;
+            margin-bottom: 15px;
         }
+        
+        .instructions ol {
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .loading {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
         @media (max-width: 768px) {
-            .app-wrapper { margin: 10px; padding: 0; }
-            .quick-send-grid { grid-template-columns: 1fr; }
-            .nav { flex-direction: column; }
-            .nav-btn { min-width: auto; justify-content: flex-start; }
-            .contact-grid { grid-template-columns: 1fr; }
-            .content { padding: 15px; }
-            .whatsapp-status { flex-direction: column; align-items: flex-start; }
-            .connection-controls { width: 100%; justify-content: center; }
-            .header h1 { font-size: 24px; }
-            .header p { font-size: 12px; }
+            .title {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+            
+            .status-card,
+            .messaging-section {
+                padding: 20px;
+            }
         }
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #333; }
-        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #00ff88; }
-        ::selection { background-color: #00ff88; color: #000; }
     </style>
 </head>
 <body>
-    <div id="fixStatus" class="fix-status">🔧 Testing fixes...</div>
-
-    <div class="app-wrapper">
-        <div class="container">
-            <div class="header">
-                <h1><i class="fab fa-whatsapp"></i> Enhanced WhatsApp Messaging Platform</h1>
-                <p>Send personalized messages with templates, contact management & group messaging</p>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Enhanced WhatsApp Messaging</h1>
+            <p class="subtitle">Secure, Fast, and Feature-Rich WhatsApp Integration</p>
+        </div>
+        
+        <div class="instructions">
+            <h3>🚀 Quick Start Guide</h3>
+            <ol>
+                <li>Click "Connect WhatsApp" below</li>
+                <li>Scan the QR code with your WhatsApp mobile app</li>
+                <li>Wait for connection confirmation</li>
+                <li>Start sending enhanced messages!</li>
+            </ol>
+        </div>
+        
+        <div class="status-card">
+            <div class="status-indicator" id="statusIndicator">
+                <div class="status-dot disconnected" id="statusDot"></div>
+                <span id="statusText">Disconnected</span>
             </div>
-
-            <div class="whatsapp-status">
-                <div class="status-indicator">
-                    <div id="statusDot" class="status-dot"></div>
-                    <span id="statusText">Initializing WhatsApp connection...</span>
+            
+            <div id="qrSection" class="hidden">
+                <p style="margin-bottom: 15px;">Scan this QR code with your WhatsApp mobile app:</p>
+                <div class="qr-container">
+                    <canvas id="qrcode" class="qr-code"></canvas>
                 </div>
-                <div class="connection-controls">
-                    <button id="connectBtn" class="btn btn-secondary" onclick="connectWhatsApp()">
-                        <i class="fas fa-plug"></i> Connect WhatsApp
-                    </button>
-                    <button id="resetBtn" class="btn btn-danger" onclick="resetConnection()">
-                        <i class="fas fa-redo"></i> Reset
-                    </button>
-                </div>
+                <p style="margin-top: 15px; color: #888;">QR code expires in 60 seconds</p>
             </div>
-
-            <div id="qrSection" class="qr-section" style="display: none;">
-                <h3><i class="fas fa-qrcode"></i> Scan QR Code with WhatsApp</h3>
-                <img id="qrImage" src="" alt="QR Code">
-                <div class="qr-instructions">
-                    <p><strong>📱 Open WhatsApp on your phone</strong></p>
-                    <p>Settings → Linked Devices → Link a Device</p>
-                    <p>Scan the QR code above</p>
-                </div>
-            </div>
-
-            <div id="primarySendSection" class="primary-send-section" style="display: none;">
-                <h2><i class="fas fa-paper-plane"></i> Send WhatsApp Message</h2>
-                
-                <div class="quick-send-grid">
-                    <div class="quick-send-option selected" onclick="selectSendMode('single')" id="singleModeBtn">
-                        <i class="fas fa-user"></i>
-                        <h3>Single Message</h3>
-                        <p>Send to one contact</p>
-                    </div>
-                    <div class="quick-send-option" onclick="selectSendMode('bulk')" id="bulkModeBtn">
-                        <i class="fas fa-users"></i>
-                        <h3>Bulk Message</h3>
-                        <p>Send to multiple contacts</p>
-                    </div>
-                </div>
-
-                <div id="singleSendForm" class="send-form">
-                    <div class="form-group">
-                        <label><i class="fas fa-phone"></i> Phone Number</label>
-                        <input type="text" id="singlePhone" class="form-control" placeholder="e.g., 1234567890 or 120363123456789@g.us (for groups)">
-                        <small>Include country code without + symbol, or use group ID format</small>
-                    </div>
-                </div>
-
-                <div id="bulkSendForm" class="send-form" style="display: none;">
-                    <div class="recipient-selector">
-                        <label><i class="fas fa-users"></i> Recipients</label>
-                        <div style="margin: 10px 0;">
-                            <button class="btn btn-secondary" onclick="selectFromContacts()">
-                                <i class="fas fa-user-check"></i> Select from Contacts
-                            </button>
-                            <button class="btn btn-secondary" onclick="selectFromGroups()">
-                                <i class="fas fa-layer-group"></i> Select from Groups
-                            </button>
-                            <button class="btn btn-warning" onclick="clearRecipients()">
-                                <i class="fas fa-times"></i> Clear
-                            </button>
-                        </div>
-                        <div id="selectedRecipients" class="selected-recipients">
-                            <p><i class="fas fa-info-circle"></i> No recipients selected</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label><i class="fas fa-file-alt"></i> Template (Optional)</label>
-                    <select id="templateSelect" class="form-control" onchange="loadSelectedTemplate()">
-                        <option value="">Select a template...</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label><i class="fas fa-comment"></i> Message</label>
-                    <textarea id="messageContent" class="form-control" rows="6" placeholder="Type your message here...
-
-Use {firstName}, {lastName}, {nickname} for personalization"></textarea>
-                    <small><i class="fas fa-lightbulb"></i> Tip: Use **bold** for WhatsApp formatting</small>
-                </div>
-
-                <div style="text-align: center; margin-top: 20px;">
-                    <button id="sendBtn" class="btn btn-large" onclick="sendMessage()" disabled>
-                        <i class="fas fa-paper-plane"></i> Send WhatsApp Message
-                    </button>
-                    <button class="btn btn-secondary" onclick="previewMessage()">
-                        <i class="fas fa-eye"></i> Preview
-                    </button>
-                </div>
-            </div>
-
-            <div class="nav">
-                <button class="nav-btn" onclick="showSection('contacts')">
-                    <i class="fas fa-address-book"></i> Contacts
+            
+            <div id="connectionActions">
+                <button class="btn" id="connectBtn" onclick="connectWhatsApp()">
+                    <span id="connectBtnText">Connect WhatsApp</span>
+                    <span id="connectBtnLoader" class="loading hidden">⟳</span>
                 </button>
-                <button class="nav-btn" onclick="showSection('groups')">
-                    <i class="fas fa-layer-group"></i> Groups
-                </button>
-                <button class="nav-btn" onclick="showSection('templates')">
-                    <i class="fas fa-file-alt"></i> Templates
-                </button>
-                <button class="nav-btn" onclick="showSection('logs')">
-                    <i class="fas fa-chart-line"></i> Message Logs
+                <button class="btn btn-secondary hidden" id="disconnectBtn" onclick="disconnectWhatsApp()">
+                    Disconnect
                 </button>
             </div>
-
-            <div class="content">
-                <div id="contacts" class="section">
-                    <h2><i class="fas fa-address-book"></i> Contact Management</h2>
-                    <div class="empty-state">
-                        <i class="fas fa-address-book"></i><br>
-                        No contacts found. Add your first contact to get started.
-                    </div>
-                </div>
-
-                <div id="groups" class="section">
-                    <h2><i class="fas fa-layer-group"></i> Group Management</h2>
-                    <div class="empty-state">
-                        <i class="fas fa-layer-group"></i><br>
-                        No groups found. Create your first group to organize your contacts.
-                    </div>
-                </div>
-
-                <div id="templates" class="section">
-                    <h2><i class="fas fa-file-alt"></i> Message Templates</h2>
-                    <div class="empty-state">
-                        <i class="fas fa-file-alt"></i><br>
-                        No templates found. Create your first template to save time when sending messages.
-                    </div>
-                </div>
-
-                <div id="logs" class="section">
-                    <h2><i class="fas fa-chart-line"></i> Message Logs</h2>
-                    <div class="empty-state">
-                        <i class="fas fa-chart-line"></i><br>
-                        No message logs found. Send your first message to see logs here.
-                    </div>
-                </div>
+        </div>
+        
+        <div class="messaging-section" id="messagingSection">
+            <h2 class="section-title">📱 Send WhatsApp Message</h2>
+            
+            <div class="form-group">
+                <label class="form-label" for="phoneNumber">
+                    Phone Number (with country code, no + symbol)
+                </label>
+                <input 
+                    type="text" 
+                    id="phoneNumber" 
+                    class="form-input" 
+                    placeholder="e.g., 1234567890"
+                    disabled
+                >
+                <small style="color: #888; font-size: 0.9rem;">
+                    Examples: 1234567890 (US), 441234567890 (UK), 919876543210 (India)
+                </small>
             </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="message">Message</label>
+                <textarea 
+                    id="message" 
+                    class="form-input form-textarea" 
+                    placeholder="Enter your message here..."
+                    disabled
+                ></textarea>
+                <small style="color: #888; font-size: 0.9rem;">
+                    Tip: Use **bold** and _italic_ for WhatsApp formatting
+                </small>
+            </div>
+            
+            <button class="btn" id="sendBtn" onclick="sendMessage()" disabled>
+                <span id="sendBtnText">Send Message</span>
+                <span id="sendBtnLoader" class="loading hidden">⟳</span>
+            </button>
+            
+            <div id="messageResult" class="message-result hidden"></div>
+        </div>
+        
+        <div class="footer">
+            <p>🎉 Enhanced WhatsApp Messaging Platform v1.0</p>
+            <p>Ready to implement Part 2 & 3: Contact Management and Templates</p>
+            <p style="margin-top: 10px; font-size: 0.8rem;">
+                This tool is for educational and legitimate business use only.<br>
+                Please comply with WhatsApp's Terms of Service.
+            </p>
         </div>
     </div>
 
-    <script src="app.js"></script>
-    
     <script>
-        setTimeout(() => {
-            const fixStatus = document.getElementById('fixStatus');
-            let status = '🔧 Testing fixes...\n';
+        // Initialize socket connection
+        const socket = io();
+        let isConnected = false;
+        let connectionState = 'disconnected';
+        
+        // DOM elements
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const qrSection = document.getElementById('qrSection');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const connectBtnText = document.getElementById('connectBtnText');
+        const connectBtnLoader = document.getElementById('connectBtnLoader');
+        const messagingSection = document.getElementById('messagingSection');
+        const phoneNumberInput = document.getElementById('phoneNumber');
+        const messageInput = document.getElementById('message');
+        const sendBtn = document.getElementById('sendBtn');
+        const sendBtnText = document.getElementById('sendBtnText');
+        const sendBtnLoader = document.getElementById('sendBtnLoader');
+        const messageResult = document.getElementById('messageResult');
+        
+        // Socket event listeners
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            updateConnectionStatus('disconnected');
+        });
+        
+        socket.on('connection-update', (data) => {
+            console.log('Connection update:', data);
+            updateConnectionStatus(data.state, data.qrCode, data.error);
+        });
+        
+        socket.on('qr-code', (qr) => {
+            console.log('QR code received');
+            displayQRCode(qr);
+        });
+        
+        // Update connection status
+        function updateConnectionStatus(state, qrCode = null, error = null) {
+            connectionState = state;
+            isConnected = state === 'connected';
             
-            if (typeof connectWhatsApp === 'function') {
-                status += '✅ app.js loaded\n✅ connectWhatsApp available\n';
+            // Update status indicator
+            statusDot.className = `status-dot ${state}`;
+            
+            // Update status text
+            const statusMessages = {
+                'disconnected': 'Disconnected',
+                'connecting': 'Connecting...',
+                'qr-ready': 'Scan QR Code',
+                'connected': 'Connected ✓',
+                'reconnecting': 'Reconnecting...',
+                'error': `Error: ${error || 'Connection failed'}`
+            };
+            
+            statusText.textContent = statusMessages[state] || 'Unknown';
+            
+            // Update UI elements
+            if (state === 'connected') {
+                connectBtn.style.display = 'none';
+                disconnectBtn.classList.remove('hidden');
+                qrSection.classList.add('hidden');
+                enableMessaging(true);
+                showMessage('WhatsApp connected successfully!', 'success');
+            } else if (state === 'qr-ready' && qrCode) {
+                connectBtnText.textContent = 'Connecting...';
+                connectBtnLoader.classList.remove('hidden');
+                connectBtn.disabled = true;
+                displayQRCode(qrCode);
+                enableMessaging(false);
+            } else if (state === 'disconnected') {
+                connectBtn.style.display = 'inline-block';
+                disconnectBtn.classList.add('hidden');
+                connectBtnText.textContent = 'Connect WhatsApp';
+                connectBtnLoader.classList.add('hidden');
+                connectBtn.disabled = false;
+                qrSection.classList.add('hidden');
+                enableMessaging(false);
+                clearMessage();
+            } else if (state === 'connecting') {
+                connectBtnText.textContent = 'Connecting...';
+                connectBtnLoader.classList.remove('hidden');
+                connectBtn.disabled = true;
+                enableMessaging(false);
+            } else if (state === 'error') {
+                connectBtn.style.display = 'inline-block';
+                disconnectBtn.classList.add('hidden');
+                connectBtnText.textContent = 'Retry Connection';
+                connectBtnLoader.classList.add('hidden');
+                connectBtn.disabled = false;
+                qrSection.classList.add('hidden');
+                enableMessaging(false);
+                showMessage(error || 'Connection failed. Please try again.', 'error');
+            }
+        }
+        
+        // Display QR code
+        function displayQRCode(qrData) {
+            try {
+                const canvas = document.getElementById('qrcode');
+                QRCode.toCanvas(canvas, qrData, {
+                    width: 300,
+                    height: 300,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                }, (error) => {
+                    if (error) {
+                        console.error('QR Code generation error:', error);
+                        showMessage('Failed to generate QR code', 'error');
+                    } else {
+                        console.log('QR code generated successfully');
+                        qrSection.classList.remove('hidden');
+                    }
+                });
+            } catch (error) {
+                console.error('QR Code display error:', error);
+                showMessage('Failed to display QR code', 'error');
+            }
+        }
+        
+        // Enable/disable messaging interface
+        function enableMessaging(enabled) {
+            phoneNumberInput.disabled = !enabled;
+            messageInput.disabled = !enabled;
+            sendBtn.disabled = !enabled;
+            
+            if (enabled) {
+                messagingSection.style.opacity = '1';
+                messagingSection.style.pointerEvents = 'auto';
             } else {
-                status += '❌ app.js failed to load\n';
+                messagingSection.style.opacity = '0.5';
+                messagingSection.style.pointerEvents = 'none';
+            }
+        }
+        
+        // Connect to WhatsApp
+        function connectWhatsApp() {
+            console.log('Connecting to WhatsApp...');
+            updateConnectionStatus('connecting');
+            socket.emit('connect-whatsapp');
+        }
+        
+        // Disconnect from WhatsApp
+        function disconnectWhatsApp() {
+            console.log('Disconnecting from WhatsApp...');
+            socket.emit('disconnect-whatsapp');
+        }
+        
+        // Send message
+        async function sendMessage() {
+            const phoneNumber = phoneNumberInput.value.trim();
+            const message = messageInput.value.trim();
+            
+            if (!phoneNumber || !message) {
+                showMessage('Please enter both phone number and message', 'error');
+                return;
             }
             
-            if (typeof io !== 'undefined') {
-                status += '✅ socket.io loaded\n';
-            } else {
-                status += '❌ socket.io not loaded\n';
+            if (!isConnected) {
+                showMessage('WhatsApp is not connected', 'error');
+                return;
             }
             
-            if (typeof showSection === 'function') {
-                status += '✅ All functions working\n';
-            } else {
-                status += '❌ Functions missing\n';
+            // Show loading state
+            sendBtnText.textContent = 'Sending...';
+            sendBtnLoader.classList.remove('hidden');
+            sendBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/send-message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        to: phoneNumber,
+                        message: message
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(`Message sent successfully! ID: ${result.messageId}`, 'success');
+                    messageInput.value = ''; // Clear message after successful send
+                } else {
+                    showMessage(`Failed to send message: ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Send message error:', error);
+                showMessage(`Error sending message: ${error.message}`, 'error');
+            } finally {
+                // Reset button state
+                sendBtnText.textContent = 'Send Message';
+                sendBtnLoader.classList.add('hidden');
+                sendBtn.disabled = false;
             }
+        }
+        
+        // Show message result
+        function showMessage(text, type) {
+            messageResult.textContent = text;
+            messageResult.className = `message-result ${type}`;
+            messageResult.classList.remove('hidden');
             
-            fixStatus.innerHTML = status.replace(/\n/g, '<br>');
-            
-            // Auto-hide after 8 seconds if all tests pass
-            if (status.includes('✅ app.js loaded') && status.includes('✅ socket.io loaded') && status.includes('✅ All functions')) {
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
                 setTimeout(() => {
-                    if (fixStatus) fixStatus.style.display = 'none';
-                }, 8000);
+                    messageResult.classList.add('hidden');
+                }, 5000);
             }
-        }, 2000);
+        }
+        
+        // Clear message result
+        function clearMessage() {
+            messageResult.classList.add('hidden');
+        }
+        
+        // Format phone number as user types
+        phoneNumberInput.addEventListener('input', (e) => {
+            // Remove any non-digit characters
+            let value = e.target.value.replace(/\D/g, '');
+            e.target.value = value;
+        });
+        
+        // Enter key support for message input
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                sendMessage();
+            }
+        });
+        
+        // Enter key support for phone number input
+        phoneNumberInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                messageInput.focus();
+            }
+        });
+        
+        // Initialize UI on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Page loaded, initializing...');
+            enableMessaging(false);
+            
+            // Request current status from server
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Initial status:', data);
+                    if (data.connected) {
+                        updateConnectionStatus('connected');
+                    } else if (data.qrCode) {
+                        updateConnectionStatus('qr-ready', data.qrCode);
+                    } else {
+                        updateConnectionStatus('disconnected');
+                    }
+                })
+                .catch(error => {
+                    console.error('Status fetch error:', error);
+                    updateConnectionStatus('disconnected');
+                });
+        });
+        
+        // Auto-refresh QR code every 50 seconds to prevent expiry
+        setInterval(() => {
+            if (connectionState === 'qr-ready' && !isConnected) {
+                console.log('Refreshing QR code...');
+                socket.emit('connect-whatsapp');
+            }
+        }, 50000);
     </script>
 </body>
 </html>
