@@ -283,7 +283,7 @@
             <ol>
                 <li>Click "Connect WhatsApp" below</li>
                 <li>Scan the QR code with your WhatsApp mobile app</li>
-                <li>Wait for connection confirmation</li>
+                <li>Wait for connection confirmation (do not refresh!)</li>
                 <li>Start sending enhanced messages!</li>
             </ol>
         </div>
@@ -299,7 +299,9 @@
                 <div class="qr-container">
                     <canvas id="qrcode" class="qr-code"></canvas>
                 </div>
-                <p style="margin-top: 15px; color: #888;">QR code expires in 60 seconds</p>
+                <p style="margin-top: 15px; color: #888;">
+                    ⚠️ Do not refresh - Scan quickly and wait for connection
+                </p>
             </div>
             
             <div id="connectionActions">
@@ -368,6 +370,7 @@
         const socket = io();
         let isConnected = false;
         let connectionState = 'disconnected';
+        let qrDisplayed = false;
         
         // DOM elements
         const statusDot = document.getElementById('statusDot');
@@ -418,7 +421,7 @@
             const statusMessages = {
                 'disconnected': 'Disconnected',
                 'connecting': 'Connecting...',
-                'qr-ready': 'Scan QR Code',
+                'qr-ready': 'Scan QR Code - Do Not Refresh!',
                 'connected': 'Connected ✓',
                 'reconnecting': 'Reconnecting...',
                 'error': `Error: ${error || 'Connection failed'}`
@@ -431,6 +434,7 @@
                 connectBtn.style.display = 'none';
                 disconnectBtn.classList.remove('hidden');
                 qrSection.classList.add('hidden');
+                qrDisplayed = false;
                 enableMessaging(true);
                 showMessage('WhatsApp connected successfully!', 'success');
             } else if (state === 'qr-ready' && qrCode) {
@@ -446,6 +450,7 @@
                 connectBtnLoader.classList.add('hidden');
                 connectBtn.disabled = false;
                 qrSection.classList.add('hidden');
+                qrDisplayed = false;
                 enableMessaging(false);
                 clearMessage();
             } else if (state === 'connecting') {
@@ -460,6 +465,7 @@
                 connectBtnLoader.classList.add('hidden');
                 connectBtn.disabled = false;
                 qrSection.classList.add('hidden');
+                qrDisplayed = false;
                 enableMessaging(false);
                 showMessage(error || 'Connection failed. Please try again.', 'error');
             }
@@ -468,6 +474,12 @@
         // Display QR code
         function displayQRCode(qrData) {
             try {
+                // Only display QR if not already displayed
+                if (qrDisplayed) {
+                    console.log('QR code already displayed, ignoring duplicate');
+                    return;
+                }
+                
                 const canvas = document.getElementById('qrcode');
                 QRCode.toCanvas(canvas, qrData, {
                     width: 300,
@@ -482,6 +494,7 @@
                     } else {
                         console.log('QR code generated successfully');
                         qrSection.classList.remove('hidden');
+                        qrDisplayed = true;
                     }
                 });
             } catch (error) {
@@ -505,8 +518,13 @@
             }
         }
         
-        // Connect to WhatsApp
+        // Connect to WhatsApp - PREVENT DOUBLE CALLS
         function connectWhatsApp() {
+            if (connectionState === 'connecting' || connectionState === 'qr-ready' || qrDisplayed) {
+                console.log('Connection already in progress, ignoring request');
+                return;
+            }
+            
             console.log('Connecting to WhatsApp...');
             updateConnectionStatus('connecting');
             socket.emit('connect-whatsapp');
@@ -515,6 +533,7 @@
         // Disconnect from WhatsApp
         function disconnectWhatsApp() {
             console.log('Disconnecting from WhatsApp...');
+            qrDisplayed = false;
             socket.emit('disconnect-whatsapp');
         }
         
@@ -634,13 +653,9 @@
                 });
         });
         
-        // Auto-refresh QR code every 50 seconds to prevent expiry
-        setInterval(() => {
-            if (connectionState === 'qr-ready' && !isConnected) {
-                console.log('Refreshing QR code...');
-                socket.emit('connect-whatsapp');
-            }
-        }, 50000);
+        // REMOVED THE PROBLEMATIC AUTO-REFRESH QR CODE LOGIC!
+        // This was causing the loop issue by requesting new QR codes
+        // while the user was trying to authenticate.
     </script>
 </body>
 </html>
