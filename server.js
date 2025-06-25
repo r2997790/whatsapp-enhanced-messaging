@@ -26,7 +26,7 @@ app.use(express.static('.'));
 
 const PORT = process.env.PORT || 8080;
 
-// State management - simplified approach with LOOP PREVENTION
+// State management - simplified approach
 let sock = null;
 let qrCodeData = null;
 let connectionStatus = 'disconnected';
@@ -57,7 +57,7 @@ const logger = {
     child: () => logger
 };
 
-// CRITICAL: Prevent rapid reconnection loops
+// Prevent rapid reconnection loops - simplified approach
 function canAttemptConnection() {
     const now = Date.now();
     const timeSinceLastAttempt = now - lastQRTime;
@@ -114,7 +114,7 @@ async function connectToWhatsApp() {
         const { state, saveCreds } = await useMultiFileAuthState(authDir);
         console.log('🔐 Using persistent auth state');
 
-        // Create socket with PROVEN configuration
+        // Create socket with simple configuration based on reference
         sock = makeWASocket({
             auth: state,
             printQRInTerminal: false,
@@ -133,7 +133,7 @@ async function connectToWhatsApp() {
 
         console.log('✅ Socket created');
 
-        // CRITICAL: Single connection update handler with strict state management
+        // Single connection update handler with strict state management
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect, qr } = update;
             const statusCode = lastDisconnect?.error?.output?.statusCode;
@@ -145,8 +145,8 @@ async function connectToWhatsApp() {
                 attempts: connectionAttempts 
             });
 
-            // Handle QR code - ONLY ONCE PER CONNECTION ATTEMPT
-            if (qr && connectionStatus !== 'connected' && !qrCodeData) {
+            // Handle QR code
+            if (qr && connectionStatus !== 'connected') {
                 try {
                     console.log('📱 Generating QR...');
                     qrCodeData = await QRCode.toDataURL(qr, {
@@ -159,13 +159,13 @@ async function connectToWhatsApp() {
                     connectionStatus = 'qr-ready';
                     io.emit('qr-code', qrCodeData);
                     io.emit('connection-status', connectionStatus);
-                    console.log('✅ QR emitted (ONCE)');
+                    console.log('✅ QR emitted');
                 } catch (error) {
                     console.error('❌ QR error:', error);
                 }
             }
 
-            // Handle connection state changes - EXACT LOGIC FROM WORKING VERSION
+            // Handle connection state changes
             if (connection === 'open') {
                 console.log('🎉 CONNECTION SUCCESSFUL!');
                 connectionStatus = 'connected';
@@ -292,7 +292,10 @@ app.get('/health', (req, res) => {
         whatsapp: connectionStatus,
         attempts: connectionAttempts,
         timestamp: new Date().toISOString(),
-        version: 'LOOP_PREVENTION_ENABLED'
+        contacts: contacts.length,
+        groups: groups.length,
+        templates: templates.length,
+        logs: messageLogs.length
     });
 });
 
@@ -320,11 +323,7 @@ app.post('/api/send-message', async (req, res) => {
             return res.status(400).json({ error: 'WhatsApp not connected' });
         }
 
-        if (!number || !message) {
-            return res.status(400).json({ error: 'Number and message are required' });
-        }
-
-        let formattedNumber = number.toString().replace(/[^\d@.]/g, '');
+        let formattedNumber = number.toString().replace(/[^\d]/g, '');
         if (!formattedNumber.includes('@')) {
             formattedNumber = `${formattedNumber}@s.whatsapp.net`;
         }
@@ -344,23 +343,202 @@ app.post('/api/send-message', async (req, res) => {
         res.json({ success: true, message: 'Message sent successfully' });
     } catch (error) {
         console.error('Send message error:', error);
-        
-        // Log failed message
-        messageLogs.push({
-            id: Date.now(),
-            number: req.body.number,
-            message: req.body.message,
-            timestamp: new Date(),
-            status: 'failed',
-            type: 'single',
-            error: error.message
-        });
-        
-        res.status(500).json({ error: 'Failed to send message: ' + error.message });
+        res.status(500).json({ error: 'Failed to send message' });
     }
 });
 
-// Socket.io - CRITICAL: Prevent client-side loops
+app.post('/api/send-bulk', async (req, res) => {
+    try {
+        const { numbers, message } = req.body;
+        
+        if (!sock || connectionStatus !== 'connected') {
+            return res.status(400).json({ error: 'WhatsApp not connected' });
+        }
+
+        const results = [];
+        
+        for (const number of numbers) {
+            try {
+                let formattedNumber = number.toString().replace(/[^\d]/g, '');
+                if (!formattedNumber.includes('@')) {
+                    formattedNumber = `${formattedNumber}@s.whatsapp.net`;
+                }
+
+                await sock.sendMessage(formattedNumber, { text: message });
+                results.push({ number, success: true });
+                
+                // Log each message
+                messageLogs.push({
+                    id: Date.now() + Math.random(),
+                    number: number,
+                    message: message,
+                    timestamp: new Date(),
+                    status: 'sent',
+                    type: 'bulk'
+                });
+                
+                if (numbers.length > 1) {
+                    await delay(2000);
+                }
+            } catch (error) {
+                results.push({ number, success: false, error: error.message });
+                
+                // Log failed message
+                messageLogs.push({
+                    id: Date.now() + Math.random(),
+                    number: number,
+                    message: message,
+                    timestamp: new Date(),
+                    status: 'failed',
+                    type: 'bulk',
+                    error: error.message
+                });
+            }
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Bulk send completed',
+            results: results 
+        });
+    } catch (error) {
+        console.error('Bulk send error:', error);
+        res.status(500).json({ error: 'Failed to send bulk messages' });
+    }
+});
+
+// Enhanced features - Contacts API
+app.get('/api/contacts', (req, res) => {
+    res.json(contacts);
+});
+
+app.post('/api/contacts', (req, res) => {
+    const { name, phone, email, tags } = req.body;
+    const contact = {
+        id: Date.now(),
+        name,
+        phone,
+        email,
+        tags: tags || [],
+        createdAt: new Date()
+    };
+    contacts.push(contact);
+    res.json({ success: true, contact });
+});
+
+app.put('/api/contacts/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const contactIndex = contacts.findIndex(c => c.id === id);
+    if (contactIndex === -1) {
+        return res.status(404).json({ error: 'Contact not found' });
+    }
+    
+    contacts[contactIndex] = { ...contacts[contactIndex], ...req.body, updatedAt: new Date() };
+    res.json({ success: true, contact: contacts[contactIndex] });
+});
+
+app.delete('/api/contacts/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const contactIndex = contacts.findIndex(c => c.id === id);
+    if (contactIndex === -1) {
+        return res.status(404).json({ error: 'Contact not found' });
+    }
+    
+    contacts.splice(contactIndex, 1);
+    res.json({ success: true });
+});
+
+// Groups API
+app.get('/api/groups', (req, res) => {
+    res.json(groups);
+});
+
+app.post('/api/groups', (req, res) => {
+    const { name, description, members } = req.body;
+    const group = {
+        id: Date.now(),
+        name,
+        description,
+        members: members || [],
+        createdAt: new Date()
+    };
+    groups.push(group);
+    res.json({ success: true, group });
+});
+
+app.put('/api/groups/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const groupIndex = groups.findIndex(g => g.id === id);
+    if (groupIndex === -1) {
+        return res.status(404).json({ error: 'Group not found' });
+    }
+    
+    groups[groupIndex] = { ...groups[groupIndex], ...req.body, updatedAt: new Date() };
+    res.json({ success: true, group: groups[groupIndex] });
+});
+
+app.delete('/api/groups/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const groupIndex = groups.findIndex(g => g.id === id);
+    if (groupIndex === -1) {
+        return res.status(404).json({ error: 'Group not found' });
+    }
+    
+    groups.splice(groupIndex, 1);
+    res.json({ success: true });
+});
+
+// Templates API
+app.get('/api/templates', (req, res) => {
+    res.json(templates);
+});
+
+app.post('/api/templates', (req, res) => {
+    const { name, content, variables } = req.body;
+    const template = {
+        id: Date.now(),
+        name,
+        content,
+        variables: variables || [],
+        createdAt: new Date()
+    };
+    templates.push(template);
+    res.json({ success: true, template });
+});
+
+app.put('/api/templates/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const templateIndex = templates.findIndex(t => t.id === id);
+    if (templateIndex === -1) {
+        return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    templates[templateIndex] = { ...templates[templateIndex], ...req.body, updatedAt: new Date() };
+    res.json({ success: true, template: templates[templateIndex] });
+});
+
+app.delete('/api/templates/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const templateIndex = templates.findIndex(t => t.id === id);
+    if (templateIndex === -1) {
+        return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    templates.splice(templateIndex, 1);
+    res.json({ success: true });
+});
+
+// Message logs API
+app.get('/api/logs', (req, res) => {
+    res.json(messageLogs.slice(-100)); // Return last 100 logs
+});
+
+app.delete('/api/logs', (req, res) => {
+    messageLogs = [];
+    res.json({ success: true, message: 'Logs cleared' });
+});
+
+// Socket.io
 io.on('connection', (socket) => {
     console.log(`👤 Client connected: ${socket.id}`);
     
@@ -377,8 +555,6 @@ io.on('connection', (socket) => {
             } else {
                 socket.emit('connection-status', 'cooldown');
             }
-        } else {
-            console.log('⚠️ Ignoring connect request - already connecting/connected');
         }
     });
 
@@ -396,10 +572,8 @@ io.on('connection', (socket) => {
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Enhanced WhatsApp Messaging Server running on port ${PORT}`);
     console.log(`📱 Node: ${process.version}`);
-    console.log('⏳ Ready - ANTI-LOOP PROTECTION ENABLED');
-    console.log('🔒 QR Loop Prevention: ACTIVE');
+    console.log('⏳ Ready - anti-loop protection enabled');
+    console.log('📊 Enhanced features: Contacts, Groups, Templates, Logs');
     console.log('');
-    console.log('Ready to implement Part 2 & 3: Contact Management and Templates');
+    console.log('🎯 READY FOR PART 2 & 3: Contact Management and Templates');
 });
-
-module.exports = { app, server, io };
