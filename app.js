@@ -109,8 +109,8 @@ function connectWhatsApp() {
         return;
     }
     
-    console.log('📤 Sending connect-whatsapp request to server');
-    hasRequestedConnection = true; // PREVENT DUPLICATES
+    console.log('📤 Sending connect-whatsapp request to server - ONCE ONLY');
+    hasRequestedConnection = true; // PREVENT FURTHER REQUESTS
     updateConnectionUI('connecting');
     socket.emit('connect-whatsapp');
 }
@@ -119,14 +119,13 @@ function connectWhatsApp() {
 function resetConnection() {
     console.log('🔄 WORKING VERSION: Reset connection requested');
     
-    hasRequestedConnection = false; // Reset flag
-    
     if (!socket) {
         console.error('❌ No socket connection for reset');
         return;
     }
     
     console.log('📤 Sending reset-connection request to server');
+    hasRequestedConnection = false; // Reset flag
     socket.emit('reset-connection');
     updateConnectionUI('disconnected');
     hideQRCode();
@@ -174,8 +173,8 @@ function updateConnectionUI(status) {
             
         case 'qr-ready':
             statusDot.classList.add('connecting');
-            statusText.textContent = 'Scan QR Code with WhatsApp - NO AUTO-REFRESH!';
-            connectBtn.innerHTML = '<i class="fas fa-qrcode"></i> Scan QR Code';
+            statusText.textContent = 'Scan QR Code with WhatsApp - NO REFRESH!';
+            connectBtn.innerHTML = '<i class="fas fa-qrcode"></i> Authenticating...';
             connectBtn.disabled = true;
             connectBtn.className = 'btn btn-secondary';
             if (sendBtn) sendBtn.disabled = true;
@@ -190,7 +189,7 @@ function updateConnectionUI(status) {
             connectBtn.className = 'btn btn-warning';
             if (sendBtn) sendBtn.disabled = true;
             hideQRCode();
-            hasRequestedConnection = false; // Reset on cooldown
+            hasRequestedConnection = false; // Reset after cooldown
             console.log('⏳ UI updated for cooldown state');
             break;
             
@@ -217,7 +216,7 @@ function updateConnectionUI(status) {
     }
 }
 
-// Display QR code for WhatsApp connection - NO AUTO-REFRESH
+// Display QR code for WhatsApp connection - NO AUTO REFRESH
 function displayQRCode(qrData) {
     console.log('📱 WORKING VERSION: DisplayQRCode called with data:', !!qrData);
     
@@ -232,7 +231,7 @@ function displayQRCode(qrData) {
     if (qrData) {
         qrImage.src = qrData;
         qrSection.style.display = 'block';
-        console.log('✅ QR Code displayed successfully - NO AUTO-REFRESH');
+        console.log('✅ QR Code displayed successfully - NO AUTO REFRESH!');
     } else {
         qrSection.style.display = 'none';
         console.log('❌ QR Code hidden');
@@ -377,13 +376,8 @@ function sendSingleMessage() {
     // Send via API
     fetch('/api/send-message', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            number: phone,
-            message: message
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number: phone, message: message })
     })
     .then(response => response.json())
     .then(data => {
@@ -395,7 +389,7 @@ function sendSingleMessage() {
         }
     })
     .catch(error => {
-        console.error('Send error:', error);
+        console.error('Error:', error);
         alert('❌ Error sending message');
     });
 }
@@ -535,6 +529,5 @@ setTimeout(() => {
     testAllFunctions();
 }, 1000);
 
-// NO AUTO-REFRESH TIMERS OR INTERVALS!
-// This was the source of the loop issue.
-console.log('🚫 NO AUTO-REFRESH TIMERS - LOOP PREVENTION ACTIVE');
+// NO AUTO-REFRESH INTERVALS! This was the source of the loop issue.
+console.log('🚨 LOOP PREVENTION ACTIVE - No auto-refresh timers!');
