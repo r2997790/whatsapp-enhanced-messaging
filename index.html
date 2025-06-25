@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enhanced WhatsApp Messaging Platform</title>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
         
@@ -24,7 +23,7 @@
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 800px;
             margin: 0 auto;
         }
         
@@ -102,11 +101,6 @@
             border-radius: 12px;
             display: inline-block;
             margin: 20px 0;
-        }
-        
-        .qr-code {
-            max-width: 300px;
-            height: auto;
         }
         
         .btn {
@@ -211,26 +205,13 @@
             color: #ff4444;
         }
         
-        .instructions {
-            background: rgba(0, 136, 255, 0.1);
-            border: 1px solid rgba(0, 136, 255, 0.3);
+        .warning {
+            background: rgba(255, 170, 0, 0.1);
+            border: 1px solid rgba(255, 170, 0, 0.3);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 30px;
-        }
-        
-        .instructions h3 {
-            color: #0088ff;
-            margin-bottom: 15px;
-        }
-        
-        .instructions ol {
-            padding-left: 20px;
-        }
-        
-        .instructions li {
-            margin-bottom: 8px;
-            line-height: 1.6;
+            color: #ffaa00;
         }
         
         .hidden {
@@ -275,17 +256,12 @@
     <div class="container">
         <div class="header">
             <h1 class="title">Enhanced WhatsApp Messaging</h1>
-            <p class="subtitle">Secure, Fast, and Feature-Rich WhatsApp Integration</p>
+            <p class="subtitle">Loop Prevention Enabled - Stable QR Authentication</p>
         </div>
         
-        <div class="instructions">
-            <h3>🚀 Quick Start Guide</h3>
-            <ol>
-                <li>Click "Connect WhatsApp" below</li>
-                <li>Scan the QR code with your WhatsApp mobile app</li>
-                <li>Wait for connection confirmation (do not refresh!)</li>
-                <li>Start sending enhanced messages!</li>
-            </ol>
+        <div class="warning">
+            <strong>⚠️ IMPORTANT:</strong> When QR code appears, scan it IMMEDIATELY with your WhatsApp mobile app. 
+            Do not refresh the page or wait too long. The QR code will NOT auto-refresh during authentication.
         </div>
         
         <div class="status-card">
@@ -295,12 +271,12 @@
             </div>
             
             <div id="qrSection" class="hidden">
-                <p style="margin-bottom: 15px;">Scan this QR code with your WhatsApp mobile app:</p>
+                <p style="margin-bottom: 15px;"><strong>Scan this QR code NOW:</strong></p>
                 <div class="qr-container">
-                    <canvas id="qrcode" class="qr-code"></canvas>
+                    <img id="qrImage" src="" alt="QR Code" style="max-width: 300px; height: auto;">
                 </div>
-                <p style="margin-top: 15px; color: #888;">
-                    ⚠️ Do not refresh - Scan quickly and wait for connection
+                <p style="margin-top: 15px; color: #ffaa00;">
+                    🚨 Scan quickly! No auto-refresh during authentication.
                 </p>
             </div>
             
@@ -311,6 +287,9 @@
                 </button>
                 <button class="btn btn-secondary hidden" id="disconnectBtn" onclick="disconnectWhatsApp()">
                     Disconnect
+                </button>
+                <button class="btn btn-secondary" onclick="resetConnection()">
+                    Reset
                 </button>
             </div>
         </div>
@@ -356,7 +335,7 @@
         </div>
         
         <div class="footer">
-            <p>🎉 Enhanced WhatsApp Messaging Platform v1.0</p>
+            <p>🎉 Enhanced WhatsApp Messaging Platform v1.1 - Loop Prevention</p>
             <p>Ready to implement Part 2 & 3: Contact Management and Templates</p>
             <p style="margin-top: 10px; font-size: 0.8rem;">
                 This tool is for educational and legitimate business use only.<br>
@@ -370,13 +349,13 @@
         const socket = io();
         let isConnected = false;
         let connectionState = 'disconnected';
-        let qrDisplayed = false;
+        let hasRequestedConnection = false; // PREVENT DUPLICATE REQUESTS
         
         // DOM elements
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
-        const statusIndicator = document.getElementById('statusIndicator');
         const qrSection = document.getElementById('qrSection');
+        const qrImage = document.getElementById('qrImage');
         const connectBtn = document.getElementById('connectBtn');
         const disconnectBtn = document.getElementById('disconnectBtn');
         const connectBtnText = document.getElementById('connectBtnText');
@@ -399,108 +378,96 @@
             updateConnectionStatus('disconnected');
         });
         
-        socket.on('connection-update', (data) => {
-            console.log('Connection update:', data);
-            updateConnectionStatus(data.state, data.qrCode, data.error);
+        socket.on('connection-status', (status) => {
+            console.log('Connection status update:', status);
+            updateConnectionStatus(status);
         });
         
-        socket.on('qr-code', (qr) => {
-            console.log('QR code received');
-            displayQRCode(qr);
+        socket.on('qr-code', (qrData) => {
+            console.log('QR code received:', !!qrData);
+            if (qrData) {
+                displayQRCode(qrData);
+            } else {
+                hideQRCode();
+            }
         });
         
         // Update connection status
-        function updateConnectionStatus(state, qrCode = null, error = null) {
-            connectionState = state;
-            isConnected = state === 'connected';
+        function updateConnectionStatus(status) {
+            connectionState = status;
+            isConnected = status === 'connected';
             
             // Update status indicator
-            statusDot.className = `status-dot ${state}`;
+            statusDot.className = `status-dot ${status}`;
             
             // Update status text
             const statusMessages = {
                 'disconnected': 'Disconnected',
                 'connecting': 'Connecting...',
-                'qr-ready': 'Scan QR Code - Do Not Refresh!',
+                'qr-ready': 'Scan QR Code NOW!',
                 'connected': 'Connected ✓',
-                'reconnecting': 'Reconnecting...',
-                'error': `Error: ${error || 'Connection failed'}`
+                'cooldown': 'Cooldown - Wait 10 seconds',
+                'error': 'Error - Try Reset'
             };
             
-            statusText.textContent = statusMessages[state] || 'Unknown';
+            statusText.textContent = statusMessages[status] || status;
             
             // Update UI elements
-            if (state === 'connected') {
+            if (status === 'connected') {
                 connectBtn.style.display = 'none';
                 disconnectBtn.classList.remove('hidden');
-                qrSection.classList.add('hidden');
-                qrDisplayed = false;
+                hideQRCode();
                 enableMessaging(true);
+                hasRequestedConnection = false;
                 showMessage('WhatsApp connected successfully!', 'success');
-            } else if (state === 'qr-ready' && qrCode) {
-                connectBtnText.textContent = 'Connecting...';
+            } else if (status === 'qr-ready') {
+                connectBtnText.textContent = 'Authenticating...';
                 connectBtnLoader.classList.remove('hidden');
                 connectBtn.disabled = true;
-                displayQRCode(qrCode);
                 enableMessaging(false);
-            } else if (state === 'disconnected') {
+            } else if (status === 'disconnected' || status === 'error') {
                 connectBtn.style.display = 'inline-block';
                 disconnectBtn.classList.add('hidden');
                 connectBtnText.textContent = 'Connect WhatsApp';
                 connectBtnLoader.classList.add('hidden');
                 connectBtn.disabled = false;
-                qrSection.classList.add('hidden');
-                qrDisplayed = false;
+                hideQRCode();
                 enableMessaging(false);
+                hasRequestedConnection = false;
                 clearMessage();
-            } else if (state === 'connecting') {
+            } else if (status === 'connecting') {
                 connectBtnText.textContent = 'Connecting...';
                 connectBtnLoader.classList.remove('hidden');
                 connectBtn.disabled = true;
                 enableMessaging(false);
-            } else if (state === 'error') {
-                connectBtn.style.display = 'inline-block';
-                disconnectBtn.classList.add('hidden');
-                connectBtnText.textContent = 'Retry Connection';
-                connectBtnLoader.classList.add('hidden');
-                connectBtn.disabled = false;
-                qrSection.classList.add('hidden');
-                qrDisplayed = false;
+            } else if (status === 'cooldown') {
+                connectBtnText.textContent = 'Wait 10 seconds...';
+                connectBtn.disabled = true;
                 enableMessaging(false);
-                showMessage(error || 'Connection failed. Please try again.', 'error');
+                setTimeout(() => {
+                    if (connectionState === 'cooldown') {
+                        updateConnectionStatus('disconnected');
+                    }
+                }, 10000);
             }
         }
         
-        // Display QR code
+        // Display QR code - NO AUTO-REFRESH
         function displayQRCode(qrData) {
             try {
-                // Only display QR if not already displayed
-                if (qrDisplayed) {
-                    console.log('QR code already displayed, ignoring duplicate');
-                    return;
-                }
-                
-                const canvas = document.getElementById('qrcode');
-                QRCode.toCanvas(canvas, qrData, {
-                    width: 300,
-                    height: 300,
-                    colorDark: '#000000',
-                    colorLight: '#ffffff',
-                    correctLevel: QRCode.CorrectLevel.M
-                }, (error) => {
-                    if (error) {
-                        console.error('QR Code generation error:', error);
-                        showMessage('Failed to generate QR code', 'error');
-                    } else {
-                        console.log('QR code generated successfully');
-                        qrSection.classList.remove('hidden');
-                        qrDisplayed = true;
-                    }
-                });
+                console.log('Displaying QR code - NO AUTO-REFRESH');
+                qrImage.src = qrData;
+                qrSection.classList.remove('hidden');
             } catch (error) {
                 console.error('QR Code display error:', error);
                 showMessage('Failed to display QR code', 'error');
             }
+        }
+        
+        // Hide QR code
+        function hideQRCode() {
+            qrSection.classList.add('hidden');
+            qrImage.src = '';
         }
         
         // Enable/disable messaging interface
@@ -518,14 +485,20 @@
             }
         }
         
-        // Connect to WhatsApp - PREVENT DOUBLE CALLS
+        // Connect to WhatsApp - STRICT DUPLICATE PREVENTION
         function connectWhatsApp() {
-            if (connectionState === 'connecting' || connectionState === 'qr-ready' || qrDisplayed) {
-                console.log('Connection already in progress, ignoring request');
+            if (hasRequestedConnection) {
+                console.log('Connection already requested, ignoring');
+                return;
+            }
+            
+            if (connectionState !== 'disconnected' && connectionState !== 'error') {
+                console.log('Not in disconnected state, ignoring connection request');
                 return;
             }
             
             console.log('Connecting to WhatsApp...');
+            hasRequestedConnection = true;
             updateConnectionStatus('connecting');
             socket.emit('connect-whatsapp');
         }
@@ -533,8 +506,23 @@
         // Disconnect from WhatsApp
         function disconnectWhatsApp() {
             console.log('Disconnecting from WhatsApp...');
-            qrDisplayed = false;
+            hasRequestedConnection = false;
             socket.emit('disconnect-whatsapp');
+        }
+        
+        // Reset connection
+        function resetConnection() {
+            console.log('Resetting connection...');
+            hasRequestedConnection = false;
+            fetch('/api/reset', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Reset response:', data);
+                    updateConnectionStatus('disconnected');
+                })
+                .catch(error => {
+                    console.error('Reset error:', error);
+                });
         }
         
         // Send message
@@ -564,7 +552,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        to: phoneNumber,
+                        number: phoneNumber,
                         message: message
                     })
                 });
@@ -572,7 +560,7 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    showMessage(`Message sent successfully! ID: ${result.messageId}`, 'success');
+                    showMessage('Message sent successfully!', 'success');
                     messageInput.value = ''; // Clear message after successful send
                 } else {
                     showMessage(`Failed to send message: ${result.error}`, 'error');
@@ -631,7 +619,7 @@
         
         // Initialize UI on page load
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('Page loaded, initializing...');
+            console.log('Page loaded - Loop Prevention Active');
             enableMessaging(false);
             
             // Request current status from server
@@ -639,12 +627,9 @@
                 .then(response => response.json())
                 .then(data => {
                     console.log('Initial status:', data);
-                    if (data.connected) {
-                        updateConnectionStatus('connected');
-                    } else if (data.qrCode) {
-                        updateConnectionStatus('qr-ready', data.qrCode);
-                    } else {
-                        updateConnectionStatus('disconnected');
+                    updateConnectionStatus(data.status);
+                    if (data.hasQR) {
+                        // Don't auto-request QR, let user click connect
                     }
                 })
                 .catch(error => {
@@ -653,9 +638,9 @@
                 });
         });
         
-        // REMOVED THE PROBLEMATIC AUTO-REFRESH QR CODE LOGIC!
-        // This was causing the loop issue by requesting new QR codes
-        // while the user was trying to authenticate.
+        // NO AUTO-REFRESH TIMERS OR INTERVALS!
+        // This was the source of the loop issue.
+        console.log('Frontend loaded with LOOP PREVENTION ENABLED');
     </script>
 </body>
 </html>
