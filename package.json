@@ -1,7 +1,7 @@
 {
   "name": "whatsapp-enhanced-messaging",
-  "version": "3.0.1-deployment-trigger",
-  "description": "Enhanced WhatsApp messaging platform with QR authentication WORKING - FORCING RAILWAY DEPLOYMENT",
+  "version": "4.0.0-FORCE-RAILWAY-LATEST",
+  "description": "FORCE DEPLOY LATEST: QR authentication WORKING - Railway must deploy THIS version",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
