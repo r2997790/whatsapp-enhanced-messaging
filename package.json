@@ -1,7 +1,7 @@
 {
   "name": "whatsapp-enhanced-messaging",
-  "version": "1.0.0",
-  "description": "Enhanced WhatsApp messaging platform with templates, personalization, contact management, and Baileys API integration",
+  "version": "1.1.0-loop-prevention",
+  "description": "Enhanced WhatsApp messaging platform with LOOP PREVENTION - QR authentication fixed",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -15,18 +15,17 @@
     "api",
     "bulk-messages",
     "templates",
-    "contacts"
+    "contacts",
+    "loop-prevention"
   ],
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.5",
-    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.8",
+    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "socket.io": "^4.7.5",
-    "pino": "^8.16.1",
-    "pino-pretty": "^10.2.3",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode": "^1.5.3",
+    "socket.io": "^4.7.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
