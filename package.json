@@ -1,7 +1,7 @@
 {
   "name": "whatsapp-enhanced-messaging",
-  "version": "3.0.0-step3a-restored",
-  "description": "Enhanced WhatsApp messaging platform with QR authentication WORKING - restored from e0670c1b",
+  "version": "3.0.1-deployment-trigger",
+  "description": "Enhanced WhatsApp messaging platform with QR authentication WORKING - FORCING RAILWAY DEPLOYMENT",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
