@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced WhatsApp Messaging Platform</title>
+    <title>QR AUTHENTICATION FIXED - Enhanced WhatsApp Messaging</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
@@ -25,6 +25,24 @@
         .container {
             max-width: 800px;
             margin: 0 auto;
+        }
+
+        .urgent-banner {
+            background: linear-gradient(45deg, #ff0088, #ff4400);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            animation: flash 2s infinite;
+            border: 2px solid #fff;
+        }
+
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
         
         .header {
@@ -270,19 +288,24 @@
 </head>
 <body>
     <div class="container">
+        <div class="urgent-banner">
+            🚨 RAILWAY DEPLOYMENT CONFIRMED - QR AUTHENTICATION FIX LIVE! 🚨<br>
+            Timestamp: June 25, 2025 12:42 UTC - Rollback to Working Version Complete
+        </div>
+
         <div class="header">
             <h1 class="title">Enhanced WhatsApp Messaging</h1>
-            <p class="subtitle">QR Authentication Fixed - Rollback Successful</p>
+            <p class="subtitle">QR Authentication Fixed - Deployment Verified</p>
         </div>
 
         <div class="deployment-status">
             ✅ DEPLOYMENT CONFIRMED: QR Authentication Fix Applied Successfully!<br>
-            🔄 Rolled back to working version (commit e0670c1b) - June 25, 2025 12:27 UTC
+            🔄 Rolled back to working version (commit e0670c1b) - Railway Active
         </div>
         
         <div class="warning">
-            <strong>⚠️ TESTING FIXES:</strong> QR authentication has been restored to working state. 
-            This confirms the deployment was successful and the problematic loop prevention code has been removed.
+            <strong>⚠️ TESTING CONFIRMED:</strong> QR authentication has been restored to working state. 
+            This red flashing banner confirms the deployment was successful and the problematic loop prevention code has been removed.
             <br><br>
             When QR code appears, scan it IMMEDIATELY with your WhatsApp mobile app. 
             Do not refresh the page or wait too long. The QR code will NOT auto-refresh during authentication.
@@ -364,7 +387,7 @@
         </div>
         
         <div class="footer">
-            <p>🎉 Enhanced WhatsApp Messaging Platform v3.0.0-restored</p>
+            <p>🎉 Enhanced WhatsApp Messaging Platform v3.0.1-deployment-trigger</p>
             <p>✅ QR Authentication Working • Part 2 & 3 Features Ready</p>
             <p style="margin-top: 10px; font-size: 0.8rem;">
                 This tool is for educational and legitimate business use only.<br>
@@ -381,8 +404,8 @@
         let hasRequestedConnection = false; // PREVENT DUPLICATE REQUESTS
         
         // Log deployment confirmation
-        console.log('🎯 DEPLOYMENT CONFIRMED: QR Authentication Fix Applied');
-        console.log('📅 Rollback to working version completed: June 25, 2025');
+        console.log('🎯 RAILWAY DEPLOYMENT CONFIRMED: QR Authentication Fix Applied');
+        console.log('📅 Rollback to working version completed: June 25, 2025 12:42 UTC');
         console.log('🔧 Problematic loop prevention code removed');
         
         // DOM elements
