@@ -1,618 +1,373 @@
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
-const QRCode = require('qrcode');
-const cors = require('cors');
-const fs = require('fs');
 const path = require('path');
-const { tmpdir } = require('os');
-
+const fs = require('fs');
+const makeWASocket = require('@whiskeysockets/baileys').default;
 const { 
-    default: makeWASocket, 
     DisconnectReason, 
     useMultiFileAuthState,
-    delay
+    fetchLatestBaileysVersion,
+    makeCacheableSignalKeyStore
 } = require('@whiskeysockets/baileys');
+const { Boom } = require('@hapi/boom');
+const pino = require('pino');
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
-    cors: { origin: "*", methods: ["GET", "POST"] }
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
 });
 
-app.use(cors());
-app.use(express.json());
-app.use(express.static('.'));
+// Configuration
+const PORT = process.env.PORT || 3000;
+const SESSION_DIR = './session';
 
-const PORT = process.env.PORT || 8080;
+// Ensure session directory exists
+if (!fs.existsSync(SESSION_DIR)) {
+    fs.mkdirSync(SESSION_DIR, { recursive: true });
+}
 
-// State management - improved from reference
+// Global variables
 let sock = null;
-let qrCodeData = null;
-let connectionStatus = 'disconnected';
-let isConnecting = false;
-let connectionAttempts = 0;
-let lastQRTime = 0;
-let authDir = path.join(tmpdir(), 'wa_session_persistent');
+let qrCode = null;
+let isConnected = false;
+let connectionState = 'disconnected';
 
-// In-memory storage for enhanced features
-let contacts = [];
-let groups = [];
-let templates = [];
-let messageLogs = [];
-
-// Ensure auth directory exists
-if (!fs.existsSync(authDir)) {
-    fs.mkdirSync(authDir, { recursive: true });
-}
-
-// Silent logger - prevents most baileys logging issues
-const logger = {
-    level: 'silent',
-    info: () => {},
-    error: () => {},
-    warn: () => {},
-    debug: () => {},
-    trace: () => {},
-    child: () => logger
-};
-
-// Prevent rapid reconnection loops - exactly as in reference
-function canAttemptConnection() {
-    const now = Date.now();
-    const timeSinceLastAttempt = now - lastQRTime;
-    
-    if (timeSinceLastAttempt < 10000) { // 10 second cooldown
-        console.log('⏳ Cooldown active, skipping connection attempt');
-        return false;
-    }
-    
-    if (connectionAttempts >= 5) { // Max 5 attempts
-        console.log('🛑 Max connection attempts reached');
-        return false;
-    }
-    
-    return true;
-}
-
-// Reset connection state
-function resetConnectionState() {
-    connectionAttempts = 0;
-    lastQRTime = 0;
-    qrCodeData = null;
-    isConnecting = false;
-}
-
-async function connectToWhatsApp() {
-    if (isConnecting) {
-        console.log('⚠️ Already connecting, ignoring request');
-        return;
-    }
-
-    if (!canAttemptConnection()) {
-        io.emit('connection-status', 'cooldown');
-        return;
-    }
-
-    try {
-        isConnecting = true;
-        connectionAttempts++;
-        lastQRTime = Date.now();
-        
-        console.log(`🔄 Connection attempt ${connectionAttempts}/5`);
-
-        // Cleanup existing socket
-        if (sock) {
-            try {
-                sock.end();
-                sock = null;
-                console.log('🧹 Cleaned up existing socket');
-            } catch (e) {}
+// Logger configuration - reduced logging to prevent spam
+const logger = pino({ 
+    level: 'error',  // Only log errors to reduce noise
+    transport: {
+        target: 'pino-pretty',
+        options: {
+            colorize: true
         }
-
-        // Use persistent auth directory (don't clear it)
-        const { state, saveCreds } = await useMultiFileAuthState(authDir);
-        console.log('🔐 Using persistent auth state');
-
-        // Create socket with exact configuration from reference
-        sock = makeWASocket({
-            auth: state,
-            printQRInTerminal: false,
-            logger: logger,
-            browser: ['WhatsApp', 'Desktop', '2.2412.54'],
-            connectTimeoutMs: 90000, // Longer timeout
-            defaultQueryTimeoutMs: 90000,
-            keepAliveIntervalMs: 20000,
-            generateHighQualityLinkPreview: false,
-            syncFullHistory: false,
-            markOnlineOnConnect: false,
-            fireInitQueries: false,
-            emitOwnEvents: false,
-            getMessage: async () => ({ conversation: 'hello' })
-        });
-
-        console.log('✅ Socket created');
-
-        // Single connection update handler with strict state management - exact logic from reference
-        sock.ev.on('connection.update', async (update) => {
-            const { connection, lastDisconnect, qr } = update;
-            const statusCode = lastDisconnect?.error?.output?.statusCode;
-            
-            console.log('📡 Update:', { 
-                connection, 
-                qr: !!qr, 
-                statusCode,
-                attempts: connectionAttempts 
-            });
-
-            // Handle QR code
-            if (qr && connectionStatus !== 'connected') {
-                try {
-                    console.log('📱 Generating QR...');
-                    qrCodeData = await QRCode.toDataURL(qr, {
-                        scale: 8,
-                        margin: 2,
-                        color: { dark: '#000000', light: '#FFFFFF' },
-                        errorCorrectionLevel: 'M'
-                    });
-                    
-                    connectionStatus = 'qr-ready';
-                    io.emit('qr-code', qrCodeData);
-                    io.emit('connection-status', connectionStatus);
-                    console.log('✅ QR emitted');
-                } catch (error) {
-                    console.error('❌ QR error:', error);
-                }
-            }
-
-            // Handle connection state changes - exact logic from reference
-            if (connection === 'open') {
-                console.log('🎉 CONNECTION SUCCESSFUL!');
-                connectionStatus = 'connected';
-                qrCodeData = null;
-                isConnecting = false;
-                resetConnectionState(); // Reset on success
-                
-                io.emit('connection-status', connectionStatus);
-                io.emit('qr-code', null);
-                
-            } else if (connection === 'connecting') {
-                console.log('🔗 Authenticating...');
-                connectionStatus = 'connecting';
-                io.emit('connection-status', connectionStatus);
-                
-            } else if (connection === 'close') {
-                console.log('🔌 Connection closed:', statusCode);
-                
-                connectionStatus = 'disconnected';
-                isConnecting = false;
-                io.emit('connection-status', connectionStatus);
-                
-                // CRITICAL: Only reconnect on specific conditions - exact logic from reference
-                let shouldReconnect = false;
-                
-                if (statusCode === DisconnectReason.loggedOut) {
-                    console.log('🚫 Logged out - clearing auth');
-                    try {
-                        const files = fs.readdirSync(authDir);
-                        files.forEach(file => fs.unlinkSync(path.join(authDir, file)));
-                    } catch (e) {}
-                    resetConnectionState();
-                    
-                } else if (statusCode === DisconnectReason.connectionReplaced) {
-                    console.log('🔄 Connection replaced - stopping');
-                    resetConnectionState();
-                    
-                } else if (statusCode === DisconnectReason.restartRequired) {
-                    console.log('🔄 Restart required');
-                    shouldReconnect = connectionAttempts < 3;
-                    
-                } else if (statusCode === DisconnectReason.badSession) {
-                    console.log('❌ Bad session - clearing auth');
-                    try {
-                        const files = fs.readdirSync(authDir);
-                        files.forEach(file => fs.unlinkSync(path.join(authDir, file)));
-                    } catch (e) {}
-                    shouldReconnect = connectionAttempts < 2;
-                    
-                } else {
-                    // For authentication failures and unknown disconnects
-                    console.log('❓ Authentication or unknown failure');
-                    // DON'T auto-reconnect - wait for manual retry
-                    shouldReconnect = false;
-                }
-
-                // Clear QR code on disconnect
-                qrCodeData = null;
-                io.emit('qr-code', null);
-
-                if (shouldReconnect) {
-                    console.log('🔄 Will retry in 8 seconds...');
-                    setTimeout(() => {
-                        connectToWhatsApp();
-                    }, 8000);
-                } else {
-                    console.log('⏹️ Stopping auto-reconnection. Manual retry required.');
-                }
-            }
-        });
-
-        // Save credentials
-        sock.ev.on('creds.update', saveCreds);
-
-        // Handle incoming messages for logs - enhanced version
-        sock.ev.on('messages.upsert', async (m) => {
-            console.log('📩 Message received - connection active');
-            // Could log incoming messages here for analytics
-        });
-
-    } catch (error) {
-        console.error('❌ Setup error:', error);
-        connectionStatus = 'error';
-        isConnecting = false;
-        io.emit('connection-status', connectionStatus);
     }
-}
+});
 
-// Manual reset function - exact from reference
-function manualReset() {
-    console.log('🔄 Manual reset initiated');
-    
-    // Stop current connection
-    if (sock) {
-        try {
-            sock.end();
-            sock = null;
-        } catch (e) {}
-    }
-    
-    // Clear auth directory
-    try {
-        const files = fs.readdirSync(authDir);
-        files.forEach(file => fs.unlinkSync(path.join(authDir, file)));
-        console.log('🧹 Auth directory cleared');
-    } catch (e) {}
-    
-    // Reset state
-    resetConnectionState();
-    connectionStatus = 'disconnected';
-    qrCodeData = null;
-    
-    io.emit('connection-status', connectionStatus);
-    io.emit('qr-code', null);
-}
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Routes
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        whatsapp: connectionStatus,
-        attempts: connectionAttempts,
-        timestamp: new Date().toISOString(),
-        contacts: contacts.length,
-        groups: groups.length,
-        templates: templates.length,
-        logs: messageLogs.length
-    });
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.get('/api/status', (req, res) => {
     res.json({
-        status: connectionStatus,
-        hasQR: !!qrCodeData,
-        isConnecting: isConnecting,
-        attempts: connectionAttempts,
-        canAttempt: canAttemptConnection()
+        connected: isConnected,
+        state: connectionState,
+        qrCode: qrCode,
+        timestamp: new Date().toISOString()
     });
 });
 
-app.post('/api/reset', (req, res) => {
-    manualReset();
-    res.json({ success: true, message: 'Connection reset' });
-});
-
-// Enhanced messaging API - improved error handling
 app.post('/api/send-message', async (req, res) => {
     try {
-        const { number, message } = req.body;
+        const { to, message } = req.body;
         
-        if (!sock || connectionStatus !== 'connected') {
-            return res.status(400).json({ error: 'WhatsApp not connected' });
+        if (!isConnected || !sock) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'WhatsApp not connected' 
+            });
         }
 
-        if (!number || !message) {
-            return res.status(400).json({ error: 'Number and message are required' });
+        if (!to || !message) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Phone number and message are required' 
+            });
         }
 
-        let formattedNumber = number.toString().replace(/[^\d@.]/g, '');
-        if (!formattedNumber.includes('@')) {
-            formattedNumber = `${formattedNumber}@s.whatsapp.net`;
-        }
-
-        await sock.sendMessage(formattedNumber, { text: message });
+        // Format phone number
+        const phoneNumber = to.includes('@') ? to : `${to}@s.whatsapp.net`;
         
-        // Log the message
-        messageLogs.push({
-            id: Date.now(),
-            number: number,
-            message: message,
-            timestamp: new Date(),
-            status: 'sent',
-            type: 'single'
-        });
-
-        res.json({ success: true, message: 'Message sent successfully' });
-    } catch (error) {
-        console.error('Send message error:', error);
+        // Send message
+        const result = await sock.sendMessage(phoneNumber, { text: message });
         
-        // Log failed message
-        messageLogs.push({
-            id: Date.now(),
-            number: req.body.number,
-            message: req.body.message,
-            timestamp: new Date(),
-            status: 'failed',
-            type: 'single',
-            error: error.message
-        });
-        
-        res.status(500).json({ error: 'Failed to send message: ' + error.message });
-    }
-});
-
-app.post('/api/send-bulk', async (req, res) => {
-    try {
-        const { numbers, message } = req.body;
-        
-        if (!sock || connectionStatus !== 'connected') {
-            return res.status(400).json({ error: 'WhatsApp not connected' });
-        }
-
-        if (!numbers || !Array.isArray(numbers) || numbers.length === 0) {
-            return res.status(400).json({ error: 'Numbers array is required' });
-        }
-
-        if (!message) {
-            return res.status(400).json({ error: 'Message is required' });
-        }
-
-        const results = [];
-        
-        for (const number of numbers) {
-            try {
-                let formattedNumber = number.toString().replace(/[^\d@.]/g, '');
-                if (!formattedNumber.includes('@')) {
-                    formattedNumber = `${formattedNumber}@s.whatsapp.net`;
-                }
-
-                await sock.sendMessage(formattedNumber, { text: message });
-                results.push({ number, success: true });
-                
-                // Log each message
-                messageLogs.push({
-                    id: Date.now() + Math.random(),
-                    number: number,
-                    message: message,
-                    timestamp: new Date(),
-                    status: 'sent',
-                    type: 'bulk'
-                });
-                
-                if (numbers.length > 1) {
-                    await delay(2000);
-                }
-            } catch (error) {
-                results.push({ number, success: false, error: error.message });
-                
-                // Log failed message
-                messageLogs.push({
-                    id: Date.now() + Math.random(),
-                    number: number,
-                    message: message,
-                    timestamp: new Date(),
-                    status: 'failed',
-                    type: 'bulk',
-                    error: error.message
-                });
-            }
-        }
-        
+        console.log('Message sent successfully:', result);
         res.json({ 
             success: true, 
-            message: 'Bulk send completed',
-            results: results 
+            messageId: result.key.id,
+            timestamp: new Date().toISOString()
         });
+        
     } catch (error) {
-        console.error('Bulk send error:', error);
-        res.status(500).json({ error: 'Failed to send bulk messages: ' + error.message });
+        console.error('Error sending message:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
     }
 });
 
-// Enhanced features - Contacts API
-app.get('/api/contacts', (req, res) => {
-    res.json(contacts);
-});
-
-app.post('/api/contacts', (req, res) => {
-    const { name, phone, email, tags } = req.body;
-    
-    if (!name || !phone) {
-        return res.status(400).json({ error: 'Name and phone are required' });
-    }
-    
-    const contact = {
-        id: Date.now(),
-        name,
-        phone,
-        email: email || '',
-        tags: tags || [],
-        createdAt: new Date()
-    };
-    contacts.push(contact);
-    res.json({ success: true, contact });
-});
-
-app.put('/api/contacts/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const contactIndex = contacts.findIndex(c => c.id === id);
-    if (contactIndex === -1) {
-        return res.status(404).json({ error: 'Contact not found' });
-    }
-    
-    contacts[contactIndex] = { ...contacts[contactIndex], ...req.body, updatedAt: new Date() };
-    res.json({ success: true, contact: contacts[contactIndex] });
-});
-
-app.delete('/api/contacts/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const contactIndex = contacts.findIndex(c => c.id === id);
-    if (contactIndex === -1) {
-        return res.status(404).json({ error: 'Contact not found' });
-    }
-    
-    contacts.splice(contactIndex, 1);
-    res.json({ success: true });
-});
-
-// Groups API
-app.get('/api/groups', (req, res) => {
-    res.json(groups);
-});
-
-app.post('/api/groups', (req, res) => {
-    const { name, description, members } = req.body;
-    
-    if (!name) {
-        return res.status(400).json({ error: 'Group name is required' });
-    }
-    
-    const group = {
-        id: Date.now(),
-        name,
-        description: description || '',
-        members: members || [],
-        createdAt: new Date()
-    };
-    groups.push(group);
-    res.json({ success: true, group });
-});
-
-app.put('/api/groups/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const groupIndex = groups.findIndex(g => g.id === id);
-    if (groupIndex === -1) {
-        return res.status(404).json({ error: 'Group not found' });
-    }
-    
-    groups[groupIndex] = { ...groups[groupIndex], ...req.body, updatedAt: new Date() };
-    res.json({ success: true, group: groups[groupIndex] });
-});
-
-app.delete('/api/groups/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const groupIndex = groups.findIndex(g => g.id === id);
-    if (groupIndex === -1) {
-        return res.status(404).json({ error: 'Group not found' });
-    }
-    
-    groups.splice(groupIndex, 1);
-    res.json({ success: true });
-});
-
-// Templates API
-app.get('/api/templates', (req, res) => {
-    res.json(templates);
-});
-
-app.post('/api/templates', (req, res) => {
-    const { name, content, variables } = req.body;
-    
-    if (!name || !content) {
-        return res.status(400).json({ error: 'Template name and content are required' });
-    }
-    
-    const template = {
-        id: Date.now(),
-        name,
-        content,
-        variables: variables || [],
-        createdAt: new Date()
-    };
-    templates.push(template);
-    res.json({ success: true, template });
-});
-
-app.put('/api/templates/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const templateIndex = templates.findIndex(t => t.id === id);
-    if (templateIndex === -1) {
-        return res.status(404).json({ error: 'Template not found' });
-    }
-    
-    templates[templateIndex] = { ...templates[templateIndex], ...req.body, updatedAt: new Date() };
-    res.json({ success: true, template: templates[templateIndex] });
-});
-
-app.delete('/api/templates/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const templateIndex = templates.findIndex(t => t.id === id);
-    if (templateIndex === -1) {
-        return res.status(404).json({ error: 'Template not found' });
-    }
-    
-    templates.splice(templateIndex, 1);
-    res.json({ success: true });
-});
-
-// Message logs API
-app.get('/api/logs', (req, res) => {
-    res.json(messageLogs.slice(-100)); // Return last 100 logs
-});
-
-app.delete('/api/logs', (req, res) => {
-    messageLogs = [];
-    res.json({ success: true, message: 'Logs cleared' });
-});
-
-// Socket.io - exact from reference with enhanced features
-io.on('connection', (socket) => {
-    console.log(`👤 Client connected: ${socket.id}`);
-    
-    socket.emit('connection-status', connectionStatus);
-    if (qrCodeData) {
-        socket.emit('qr-code', qrCodeData);
-    }
-
-    socket.on('connect-whatsapp', () => {
-        console.log('🔌 Client requested connection');
-        if (connectionStatus === 'disconnected' || connectionStatus === 'error') {
-            if (canAttemptConnection()) {
-                connectToWhatsApp();
-            } else {
-                socket.emit('connection-status', 'cooldown');
+app.post('/api/disconnect', async (req, res) => {
+    try {
+        if (sock) {
+            await sock.logout();
+            sock = null;
+            isConnected = false;
+            connectionState = 'disconnected';
+            qrCode = null;
+            
+            // Clean up session files
+            if (fs.existsSync(SESSION_DIR)) {
+                fs.rmSync(SESSION_DIR, { recursive: true, force: true });
+                fs.mkdirSync(SESSION_DIR, { recursive: true });
             }
+            
+            io.emit('connection-update', { 
+                state: 'disconnected',
+                qrCode: null 
+            });
+        }
+        
+        res.json({ success: true, message: 'Disconnected successfully' });
+    } catch (error) {
+        console.error('Error disconnecting:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+// Initialize WhatsApp connection
+async function initializeWhatsApp() {
+    try {
+        console.log('Initializing WhatsApp connection...');
+        
+        // Clear any existing connection
+        if (sock) {
+            try {
+                await sock.logout();
+            } catch (e) {
+                // Ignore logout errors
+            }
+            sock = null;
+        }
+        
+        // Get latest Baileys version
+        const { version, isLatest } = await fetchLatestBaileysVersion();
+        console.log(`Using Baileys version: ${version.join('.')}, isLatest: ${isLatest}`);
+        
+        // Initialize auth state
+        const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
+        
+        // Create socket
+        sock = makeWASocket({
+            version,
+            logger,
+            auth: {
+                creds: state.creds,
+                keys: makeCacheableSignalKeyStore(state.keys, logger)
+            },
+            printQRInTerminal: false,  // We'll handle QR display ourselves
+            browser: ['WhatsApp Enhanced Messaging', 'Chrome', '1.0.0'],
+            generateHighQualityLinkPreview: true,
+            syncFullHistory: false,  // Don't sync full history for faster startup
+            defaultQueryTimeoutMs: 60000,
+            connectTimeoutMs: 60000,
+            keepAliveIntervalMs: 30000,
+            markOnlineOnConnect: true,
+            fireInitQueries: true,
+            emitOwnEvents: false,
+            msgRetryCounterCache: {},
+            qrTimeout: 60000,  // 60 second QR timeout
+            // Connection options
+            retryRequestDelayMs: 250,
+            maxMsgRetryCount: 5,
+        });
+
+        // Connection event handlers
+        sock.ev.on('connection.update', async (update) => {
+            const { connection, lastDisconnect, qr } = update;
+            
+            console.log('Connection update:', { connection, qr: !!qr });
+            
+            if (qr) {
+                qrCode = qr;
+                connectionState = 'qr-ready';
+                console.log('QR Code generated, emitting to clients...');
+                io.emit('qr-code', qr);
+                io.emit('connection-update', { 
+                    state: 'qr-ready',
+                    qrCode: qr 
+                });
+            }
+            
+            if (connection === 'close') {
+                const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+                const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+                
+                console.log('Connection closed:', {
+                    statusCode,
+                    shouldReconnect,
+                    reason: DisconnectReason[statusCode] || 'Unknown'
+                });
+                
+                isConnected = false;
+                qrCode = null;
+                
+                if (shouldReconnect) {
+                    connectionState = 'reconnecting';
+                    console.log('Reconnecting in 5 seconds...');
+                    setTimeout(() => initializeWhatsApp(), 5000);
+                } else {
+                    connectionState = 'disconnected';
+                    sock = null;
+                }
+                
+                io.emit('connection-update', { 
+                    state: connectionState,
+                    qrCode: null 
+                });
+                
+            } else if (connection === 'open') {
+                console.log('WhatsApp connected successfully!');
+                isConnected = true;
+                connectionState = 'connected';
+                qrCode = null;
+                
+                io.emit('connection-update', { 
+                    state: 'connected',
+                    qrCode: null 
+                });
+                
+                // Test connection
+                try {
+                    const me = sock.user;
+                    console.log('Connected as:', me?.name || me?.id);
+                } catch (error) {
+                    console.log('Could not get user info:', error.message);
+                }
+            }
+        });
+
+        // Save credentials when they update
+        sock.ev.on('creds.update', saveCreds);
+
+        // Handle messages (optional - for logging)
+        sock.ev.on('messages.upsert', (m) => {
+            console.log('New message received:', m.messages.length);
+        });
+
+        // Handle errors
+        sock.ev.on('connection.error', (error) => {
+            console.error('Connection error:', error);
+        });
+
+    } catch (error) {
+        console.error('Error initializing WhatsApp:', error);
+        connectionState = 'error';
+        io.emit('connection-update', { 
+            state: 'error',
+            error: error.message 
+        });
+        
+        // Retry after 10 seconds
+        setTimeout(() => initializeWhatsApp(), 10000);
+    }
+}
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+    console.log('Client connected:', socket.id);
+    
+    // Send current status to new client
+    socket.emit('connection-update', {
+        state: connectionState,
+        qrCode: qrCode,
+        connected: isConnected
+    });
+    
+    // Handle connection requests
+    socket.on('connect-whatsapp', () => {
+        console.log('Client requested WhatsApp connection');
+        if (!isConnected && connectionState !== 'connecting') {
+            initializeWhatsApp();
         }
     });
-
-    socket.on('reset-connection', () => {
-        console.log('🔄 Client requested reset');
-        manualReset();
+    
+    // Handle disconnect requests
+    socket.on('disconnect-whatsapp', async () => {
+        console.log('Client requested WhatsApp disconnection');
+        try {
+            if (sock) {
+                await sock.logout();
+                sock = null;
+                isConnected = false;
+                connectionState = 'disconnected';
+                qrCode = null;
+                
+                // Clean up session files
+                if (fs.existsSync(SESSION_DIR)) {
+                    fs.rmSync(SESSION_DIR, { recursive: true, force: true });
+                    fs.mkdirSync(SESSION_DIR, { recursive: true });
+                }
+                
+                io.emit('connection-update', { 
+                    state: 'disconnected',
+                    qrCode: null 
+                });
+            }
+        } catch (error) {
+            console.error('Error during disconnection:', error);
+        }
     });
-
+    
     socket.on('disconnect', () => {
-        console.log(`👋 Client disconnected: ${socket.id}`);
+        console.log('Client disconnected:', socket.id);
     });
+});
+
+// Cleanup on process exit
+process.on('SIGINT', async () => {
+    console.log('Shutting down gracefully...');
+    if (sock) {
+        try {
+            await sock.logout();
+        } catch (error) {
+            console.log('Error during shutdown:', error.message);
+        }
+    }
+    process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+    console.log('Received SIGTERM, shutting down...');
+    if (sock) {
+        try {
+            await sock.logout();
+        } catch (error) {
+            console.log('Error during shutdown:', error.message);
+        }
+    }
+    process.exit(0);
 });
 
 // Start server
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Enhanced WhatsApp Messaging Server running on port ${PORT}`);
-    console.log(`📱 Node: ${process.version}`);
-    console.log('⏳ Ready - anti-loop protection enabled');
-    console.log('📊 Enhanced features: Contacts, Groups, Templates, Logs');
-    console.log('🔧 Step 1: QR Authentication fixes applied');
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Access the application at: http://localhost:${PORT}`);
+    console.log('');
+    console.log('🚀 WhatsApp Enhanced Messaging Platform');
+    console.log('📱 Ready for QR code authentication');
+    console.log('⚡ All systems initialized');
+    console.log('');
+    console.log('Next steps:');
+    console.log('1. Open the web interface');
+    console.log('2. Click "Connect WhatsApp"');
+    console.log('3. Scan the QR code with your phone');
+    console.log('4. Start sending messages!');
+    console.log('');
+    console.log('Ready to implement Part 2 & 3: Contact Management and Templates');
 });
+
+module.exports = { app, server, io };
