@@ -1,12 +1,7 @@
 [build]
-builder = "NIXPACKS"
+builder = "nixpacks"
 
 [deploy]
 startCommand = "node server.js"
-healthcheckPath = "/health"
-healthcheckTimeout = 300
-restartPolicyType = "ON_FAILURE"
-
-[environment]
-NODE_ENV = "production"
-DEPLOYMENT_ID = "RAILWAY_FRESH_DEPLOY_QR_FIX_2025_06_25"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
