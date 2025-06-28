@@ -1,0 +1,2 @@
+Deployment trigger: 2025-06-28 14:58:00 UTC
+Railway forced deployment with fixed package.json
