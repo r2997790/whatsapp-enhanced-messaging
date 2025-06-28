@@ -1,37 +1,16 @@
 {
   "name": "whatsapp-enhanced-messaging",
-  "version": "5.0.1-RAILWAY-FORCE-DEPLOY",
-  "description": "RAILWAY MUST DEPLOY THIS VERSION - QR authentication working - JSON parsing fixed",
+  "version": "5.0.2",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "build": "echo 'No build required'",
-    "dev": "nodemon server.js",
-    "start:step3a": "node server-step3a-data-management.js"
+    "start": "node server.js"
   },
-  "keywords": [
-    "whatsapp",
-    "messaging",
-    "baileys",
-    "bulk-messaging",
-    "templates",
-    "personalization",
-    "contact-management",
-    "group-management",
-    "message-logs",
-    "analytics"
-  ],
-  "author": "r2997790",
-  "license": "MIT",
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.8",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "qrcode": "^1.5.3",
     "socket.io": "^4.7.2"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
   },
   "engines": {
     "node": ">=18.0.0"
