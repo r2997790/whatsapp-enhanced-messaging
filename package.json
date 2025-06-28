@@ -1,7 +1,7 @@
 {
   "name": "whatsapp-enhanced-messaging",
-  "version": "5.0.0-FORCE-LATEST-DEPLOYMENT",
-  "description": "RAILWAY MUST DEPLOY THIS VERSION - QR authentication working - NOT ULTRA version",
+  "version": "5.0.1-RAILWAY-FORCE-DEPLOY",
+  "description": "RAILWAY MUST DEPLOY THIS VERSION - QR authentication working - JSON parsing fixed",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
